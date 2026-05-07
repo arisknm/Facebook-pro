@@ -1,0 +1,78 @@
+name: Konten Bola Otomatis
+
+on:
+  schedule:
+    # Semua waktu dalam UTC (WIB = UTC+7, kurangi 7 jam)
+    - cron: '30 23 * * *'   # 06:30 WIB — berita transfer
+    - cron: '0 1 * * *'     # 08:00 WIB — preview pertandingan
+    - cron: '0 5 * * *'     # 12:00 WIB — polling interaktif
+    - cron: '0 8 * * *'     # 15:00 WIB — topik viral
+    - cron: '0 12 * * *'    # 19:00 WIB — pengingat pertandingan
+    - cron: '0 16 * * *'    # 23:00 WIB — rekap hasil
+    - cron: '30 16 * * *'   # 23:30 WIB — statistik malam
+    - cron: '0 3 * * 1'     # 10:00 WIB Senin — klasemen mingguan
+  workflow_dispatch:        # bisa dijalankan manual dari GitHub
+
+env:
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+  FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+  FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+  NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+  LIGA_FAVORIT: "Premier League,La Liga,Serie A,Bundesliga,Liga 1"
+  OUTPUT_DIR: output
+
+jobs:
+  posting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Buat folder yang dibutuhkan
+        run: mkdir -p logs output videos/uploaded
+
+      - name: Tentukan job berdasarkan waktu
+        id: job
+        run: |
+          MENIT=$(date -u +"%H%M")
+          echo "Waktu UTC: $MENIT"
+          if   [ "$MENIT" -ge "2320" ] || [ "$MENIT" -lt "0030" ]; then
+            echo "perintah=transfer" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "0050" ] && [ "$MENIT" -lt "0130" ]; then
+            echo "perintah=preview --facebook" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "0450" ] && [ "$MENIT" -lt "0530" ]; then
+            echo "perintah=polling" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "0750" ] && [ "$MENIT" -lt "0830" ]; then
+            echo "perintah=viral" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "1150" ] && [ "$MENIT" -lt "1230" ]; then
+            echo "perintah=pengingat" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "1550" ] && [ "$MENIT" -lt "1630" ]; then
+            echo "perintah=rekap --facebook" >> $GITHUB_OUTPUT
+          elif [ "$MENIT" -ge "1620" ] && [ "$MENIT" -lt "1700" ]; then
+            echo "perintah=statistik" >> $GITHUB_OUTPUT
+          else
+            echo "perintah=semua" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Jalankan posting
+        run: |
+          echo "Menjalankan: python main.py ${{ steps.job.outputs.perintah }}"
+          python main.py ${{ steps.job.outputs.perintah }}
+
+      - name: Simpan log output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-${{ github.run_number }}
+          path: output/
+          retention-days: 7
