@@ -1,26 +1,37 @@
 """
-Generator konten bola menggunakan Claude AI.
+Generator konten bola menggunakan Google Gemini API (gratis 1.500 req/hari).
+Model: gemini-2.0-flash — via REST API (tidak butuh library tambahan).
 """
-import anthropic
-from config import ANTHROPIC_API_KEY
+import requests
+from config import GEMINI_API_KEY
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini-2.0-flash"
+GEMINI_URL = (
+    f"https://generativelanguage.googleapis.com/v1beta/models"
+    f"/{MODEL}:generateContent"
+)
+
+SYSTEM_PROMPT = (
+    "Kamu adalah jurnalis olahraga profesional Indonesia yang ahli sepak bola. "
+    "Tulis konten yang informatif, menarik, dan menggunakan bahasa Indonesia gaul "
+    "yang mudah dipahami semua kalangan. Gunakan emoji yang relevan."
+)
 
 
-def _chat(prompt: str, system: str = "") -> str:
-    sys = system or (
-        "Kamu adalah jurnalis olahraga profesional Indonesia yang ahli sepak bola. "
-        "Tulis konten yang informatif, menarik, dan menggunakan bahasa Indonesia gaul "
-        "yang mudah dipahami semua kalangan. Gunakan emoji yang relevan."
+def _chat(prompt: str) -> str:
+    payload = {
+        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.8},
+    }
+    resp = requests.post(
+        GEMINI_URL,
+        params={"key": GEMINI_API_KEY},
+        json=payload,
+        timeout=30,
     )
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=1500,
-        system=sys,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return msg.content[0].text
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 # --------------------------------------------------------------------------- #
@@ -44,8 +55,7 @@ Format output:
 
 Pisahkan setiap bagian dengan === BAGIAN ===
 """
-    hasil = _chat(prompt)
-    return _parse_output(hasil)
+    return _parse_output(_chat(prompt))
 
 
 def buat_rekap_hasil(fixture_teks: list[str]) -> dict:
@@ -65,8 +75,7 @@ Format output:
 
 Pisahkan setiap bagian dengan === BAGIAN ===
 """
-    hasil = _chat(prompt)
-    return _parse_output(hasil)
+    return _parse_output(_chat(prompt))
 
 
 def buat_analisis_klasemen(liga: str, standings_teks: str) -> dict:
@@ -85,8 +94,7 @@ Format output:
 
 Pisahkan setiap bagian dengan === BAGIAN ===
 """
-    hasil = _chat(prompt)
-    return _parse_output(hasil)
+    return _parse_output(_chat(prompt))
 
 
 def buat_konten_transfer(berita: str) -> dict:
@@ -105,8 +113,7 @@ Format output:
 
 Pisahkan setiap bagian dengan === BAGIAN ===
 """
-    hasil = _chat(prompt)
-    return _parse_output(hasil)
+    return _parse_output(_chat(prompt))
 
 
 def buat_konten_bebas(topik: str) -> dict:
@@ -124,8 +131,7 @@ Format output:
 
 Pisahkan setiap bagian dengan === BAGIAN ===
 """
-    hasil = _chat(prompt)
-    return _parse_output(hasil)
+    return _parse_output(_chat(prompt))
 
 
 def buat_konten_berita_transfer(berita_teks: str) -> dict:
@@ -216,7 +222,7 @@ Data pertandingan:
 {daftar}
 
 Instruksi:
-- Angkat 3-5 statistik paling menarik (gol, assist, kartu, rekor)
+- Angkat 3-5 statistik paling menarik (gol, assist, kartu merah, rekor)
 - Gaya infografik teks — gunakan angka dan emoji yang menonjol
 - Tambahkan trivia atau fakta unik
 - Panjang: 180-250 kata, hashtag relevan
@@ -247,30 +253,29 @@ Tandai jeda dengan [PAUSE] dan efek visual dengan [VISUAL: deskripsi].
 # --------------------------------------------------------------------------- #
 
 def _parse_output(teks: str) -> dict:
-    """Parsing output Claude ke dict berstruktur."""
+    """Parsing output Gemini ke dict berstruktur."""
     bagian = [b.strip() for b in teks.split("=== BAGIAN ===")]
-    # Hapus bagian kosong
     bagian = [b for b in bagian if b]
 
-    # Cari section berdasarkan label
     hasil = {
-        "facebook_caption": "",
+        "facebook_caption"  : "",
         "youtube_description": "",
-        "youtube_title": "",
-        "youtube_tags": [],
+        "youtube_title"     : "",
+        "youtube_tags"      : [],
     }
 
     keys = ["facebook_caption", "youtube_description", "youtube_title", "youtube_tags"]
     for i, key in enumerate(keys):
         if i < len(bagian):
-            teks_bagian = bagian[i]
-            # Hapus header "1. CAPTION FACEBOOK" dsb
-            lines = teks_bagian.split("\n")
+            lines = bagian[i].split("\n")
             konten_lines = []
             for line in lines:
                 stripped = line.strip()
                 if stripped and not (
-                    stripped[0].isdigit() and stripped[1] in (".", ")") and stripped[2:].strip().isupper()
+                    len(stripped) > 2
+                    and stripped[0].isdigit()
+                    and stripped[1] in (".", ")")
+                    and stripped[2:].strip().isupper()
                 ):
                     konten_lines.append(line)
             konten = "\n".join(konten_lines).strip()

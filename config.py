@@ -7,8 +7,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Anthropic / Claude
+# Anthropic / Claude (opsional, jika masih dipakai)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+
+# Google Gemini (gratis 1.500 req/hari)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Facebook / Meta
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
