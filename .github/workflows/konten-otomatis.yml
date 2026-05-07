@@ -32,7 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      secrets: write
     steps:
       - name: Checkout kode
         uses: actions/checkout@v4
