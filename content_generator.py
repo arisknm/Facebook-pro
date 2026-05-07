@@ -128,6 +128,103 @@ Pisahkan setiap bagian dengan === BAGIAN ===
     return _parse_output(hasil)
 
 
+def buat_konten_berita_transfer(berita_teks: str) -> dict:
+    """Buat konten pagi dari berita transfer terkini."""
+    prompt = f"""
+Buat konten berita transfer sepak bola pagi hari untuk media sosial.
+
+Berita terkini:
+{berita_teks}
+
+Format output:
+1. CAPTION FACEBOOK (200-280 kata, gaya berita pagi, energetik, emoji, hashtag)
+2. DESKRIPSI YOUTUBE (150 kata, SEO-friendly)
+3. JUDUL YOUTUBE (maks 70 karakter, clickbait tapi faktual)
+4. TAGS YOUTUBE (15-20 tag)
+
+Pisahkan setiap bagian dengan === BAGIAN ===
+"""
+    return _parse_output(_chat(prompt))
+
+
+def buat_polling_interaktif(fixture_teks: list[str]) -> str:
+    """Buat caption polling/kuis untuk pertandingan malam ini (hanya Facebook)."""
+    daftar = "\n".join(f"- {f}" for f in fixture_teks)
+    prompt = f"""
+Buat caption Facebook berisi polling interaktif untuk pertandingan malam ini.
+
+Pertandingan:
+{daftar}
+
+Instruksi:
+- Pilih 1 pertandingan paling menarik sebagai fokus polling
+- Buat pertanyaan "Siapa yang menang?" dengan pilihan A/B atau komentar tim
+- Tambahkan prediksi singkat kamu sebagai penulis
+- Akhiri dengan ajakan vote di kolom komentar
+- Panjang: 150-200 kata, emoji, hashtag
+- Jangan sertakan format YOUTUBE, hanya caption Facebook saja
+"""
+    return _chat(prompt)
+
+
+def buat_pengingat_pertandingan(fixture_teks: list[str]) -> str:
+    """Buat caption pengingat pertandingan malam ini (hanya Facebook)."""
+    daftar = "\n".join(f"- {f}" for f in fixture_teks)
+    prompt = f"""
+Buat caption Facebook sebagai pengingat (reminder) pertandingan malam ini.
+
+Pertandingan:
+{daftar}
+
+Instruksi:
+- Sebutkan kick-off time dengan jelas
+- Beri highlight 1-2 pertandingan paling menarik
+- Ajak followers untuk nonton dan pantau skor bareng
+- Gaya hype, semangat, seperti siaran radio bola
+- Panjang: 150-200 kata, emoji, hashtag
+- Hanya caption Facebook saja, tanpa format YouTube
+"""
+    return _chat(prompt)
+
+
+def buat_konten_topik_viral(berita_teks: str) -> dict:
+    """Buat konten dari topik viral sepak bola sore hari."""
+    prompt = f"""
+Buat konten analisis topik viral sepak bola untuk media sosial sore hari.
+
+Topik/berita viral:
+{berita_teks}
+
+Format output:
+1. CAPTION FACEBOOK (220-300 kata, opini + analisis, ajakan diskusi, hashtag)
+2. DESKRIPSI YOUTUBE (150 kata, SEO)
+3. JUDUL YOUTUBE (maks 70 karakter, provokatif tapi tidak hoaks)
+4. TAGS YOUTUBE (15-20 tag)
+
+Pisahkan setiap bagian dengan === BAGIAN ===
+"""
+    return _parse_output(_chat(prompt))
+
+
+def buat_statistik_malam(fixture_teks: list[str]) -> str:
+    """Buat caption statistik menarik dari pertandingan malam ini (hanya Facebook)."""
+    daftar = "\n".join(f"- {f}" for f in fixture_teks)
+    prompt = f"""
+Buat caption Facebook berisi statistik dan fakta menarik dari pertandingan tadi malam.
+
+Data pertandingan:
+{daftar}
+
+Instruksi:
+- Angkat 3-5 statistik paling menarik (gol, assist, kartu, rekor)
+- Gaya infografik teks — gunakan angka dan emoji yang menonjol
+- Tambahkan trivia atau fakta unik
+- Panjang: 180-250 kata, hashtag relevan
+- Hanya caption Facebook saja
+"""
+    return _chat(prompt)
+
+
 def buat_script_video(topik: str, durasi_menit: int = 5) -> str:
     """Buat script narasi video YouTube."""
     prompt = f"""

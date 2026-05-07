@@ -24,6 +24,9 @@ YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID", "")
 FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY", "")
 FOOTBALL_API_HOST = os.getenv("FOOTBALL_API_HOST", "v3.football.api-sports.io")
 
+# News API (newsapi.org)
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+
 # Konten
 BAHASA = os.getenv("BAHASA", "id")  # id = Indonesia
 LIGA_FAVORIT = os.getenv("LIGA_FAVORIT", "Premier League,La Liga,Serie A,Bundesliga,Liga 1").split(",")

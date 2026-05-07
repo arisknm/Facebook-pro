@@ -12,6 +12,7 @@ import football_api as api
 import content_generator as gen
 import facebook_publisher as fb
 import youtube_publisher as yt
+import news_api as news
 
 log = logging.getLogger(__name__)
 
@@ -150,6 +151,145 @@ class FootballContentAgent:
             except Exception as e:
                 hasil["platform"].append({"facebook_error": str(e)})
 
+        return hasil
+
+    # ------------------------------------------------------------------ #
+    #  JADWAL HARIAN OTOMATIS
+    # ------------------------------------------------------------------ #
+
+    def posting_berita_transfer(self) -> dict:
+        """06:30 — Berita transfer terkini dari NewsAPI."""
+        log.info("Job 06:30: berita transfer pagi")
+        berita = news.get_transfer_news(jumlah=5)
+        if not berita:
+            log.warning("Tidak ada berita transfer ditemukan.")
+            return {"status": "tidak_ada_berita"}
+        berita_teks = news.format_berita_untuk_prompt(berita)
+        konten = gen.buat_konten_berita_transfer(berita_teks)
+        self._simpan_konten("transfer_pagi", konten)
+        hasil = {"konten": konten, "platform": []}
+        try:
+            res = fb.post_teks(konten["facebook_caption"])
+            hasil["platform"].append({"facebook": res})
+            log.info(f"Facebook: berita transfer diposting — ID {res.get('id')}")
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            hasil["platform"].append({"facebook_error": str(e)})
+        return hasil
+
+    def posting_polling(self) -> dict:
+        """12:00 — Polling interaktif pertandingan malam ini."""
+        log.info("Job 12:00: polling pertandingan malam")
+        liga_ids = [api.LIGA_ID[l] for l in LIGA_FAVORIT if l in api.LIGA_ID]
+        fixtures = api.get_fixtures_hari_ini(liga_ids)
+        if not fixtures:
+            log.warning("Tidak ada pertandingan hari ini untuk polling.")
+            return {"status": "tidak_ada_pertandingan"}
+        fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
+        caption = gen.buat_polling_interaktif(fixture_teks)
+        hasil = {"caption": caption, "platform": []}
+        try:
+            res = fb.post_teks(caption)
+            hasil["platform"].append({"facebook": res})
+            log.info(f"Facebook: polling diposting — ID {res.get('id')}")
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            hasil["platform"].append({"facebook_error": str(e)})
+        return hasil
+
+    def posting_topik_viral(self) -> dict:
+        """15:00 — Konten topik viral sepak bola sore hari."""
+        log.info("Job 15:00: topik viral sore")
+        berita = news.get_viral_topics(jumlah=5)
+        if not berita:
+            log.warning("Tidak ada topik viral ditemukan.")
+            return {"status": "tidak_ada_topik"}
+        berita_teks = news.format_berita_untuk_prompt(berita)
+        konten = gen.buat_konten_topik_viral(berita_teks)
+        self._simpan_konten("viral_sore", konten)
+        hasil = {"konten": konten, "platform": []}
+        try:
+            res = fb.post_teks(konten["facebook_caption"])
+            hasil["platform"].append({"facebook": res})
+            log.info(f"Facebook: topik viral diposting — ID {res.get('id')}")
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            hasil["platform"].append({"facebook_error": str(e)})
+        return hasil
+
+    def posting_pengingat_pertandingan(self) -> dict:
+        """19:00 — Pengingat pertandingan malam ini."""
+        log.info("Job 19:00: pengingat pertandingan")
+        liga_ids = [api.LIGA_ID[l] for l in LIGA_FAVORIT if l in api.LIGA_ID]
+        fixtures = api.get_fixtures_hari_ini(liga_ids)
+        if not fixtures:
+            log.warning("Tidak ada pertandingan malam ini.")
+            return {"status": "tidak_ada_pertandingan"}
+        fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
+        caption = gen.buat_pengingat_pertandingan(fixture_teks)
+        hasil = {"caption": caption, "platform": []}
+        try:
+            res = fb.post_teks(caption)
+            hasil["platform"].append({"facebook": res})
+            log.info(f"Facebook: pengingat diposting — ID {res.get('id')}")
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            hasil["platform"].append({"facebook_error": str(e)})
+        return hasil
+
+    def upload_video_folder_otomatis(self, folder: str = "videos") -> dict:
+        """
+        21:00 — Upload semua file .mp4 di folder ke YouTube lalu pindahkan ke
+        folder 'videos/uploaded' agar tidak terupload dua kali.
+        """
+        import glob
+        import shutil
+        log.info(f"Job 21:00: scan folder '{folder}' untuk upload YouTube")
+        Path(folder).mkdir(exist_ok=True)
+        uploaded_dir = Path(folder) / "uploaded"
+        uploaded_dir.mkdir(exist_ok=True)
+
+        video_files = sorted(glob.glob(f"{folder}/*.mp4"))
+        if not video_files:
+            log.info("Tidak ada file .mp4 di folder videos/.")
+            return {"status": "tidak_ada_video", "uploaded": []}
+
+        hasil_list = []
+        for file_path in video_files:
+            nama = Path(file_path).stem
+            topik = nama.replace("_", " ").replace("-", " ")
+            log.info(f"Mengupload: {file_path} (topik: {topik})")
+            try:
+                hasil = self.upload_video_ke_youtube(file_path, topik)
+                shutil.move(file_path, str(uploaded_dir / Path(file_path).name))
+                hasil_list.append({"file": file_path, "result": hasil})
+                log.info(f"Selesai: {file_path} → {hasil.get('url')}")
+            except Exception as e:
+                log.error(f"Gagal upload {file_path}: {e}")
+                hasil_list.append({"file": file_path, "error": str(e)})
+
+        return {"status": "selesai", "uploaded": hasil_list}
+
+    def posting_statistik_malam(self) -> dict:
+        """23:30 — Statistik menarik dari pertandingan tadi malam."""
+        log.info("Job 23:30: statistik malam")
+        liga_ids = [api.LIGA_ID[l] for l in LIGA_FAVORIT if l in api.LIGA_ID]
+        fixtures = api.get_fixtures_kemarin(liga_ids)
+        selesai = [f for f in fixtures if
+                   f.get("fixture", {}).get("status", {}).get("short") == "FT"]
+        if not selesai:
+            log.warning("Tidak ada pertandingan selesai untuk statistik.")
+            return {"status": "tidak_ada_data"}
+        fixture_teks = [api.format_fixture_untuk_prompt(f) for f in selesai]
+        caption = gen.buat_statistik_malam(fixture_teks)
+        hasil = {"caption": caption, "platform": []}
+        try:
+            res = fb.post_teks(caption)
+            hasil["platform"].append({"facebook": res})
+            log.info(f"Facebook: statistik malam diposting — ID {res.get('id')}")
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            hasil["platform"].append({"facebook_error": str(e)})
         return hasil
 
     # ------------------------------------------------------------------ #
