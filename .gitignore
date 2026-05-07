@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+output/
+logs/
+*.mp4
+*.avi
+*.mkv
+*.mov
