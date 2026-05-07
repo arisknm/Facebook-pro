@@ -1,16 +1,21 @@
 name: Refresh Token Facebook
 
 on:
+  # Auto-refresh setiap 50 hari (sebelum long-lived token expired 60 hari)
+  schedule:
+    - cron: '0 0 */50 * *'
   workflow_dispatch:
     inputs:
       user_token:
-        description: 'Token Pengguna (User Token) dari Graph API Explorer'
-        required: true
+        description: 'Token Pengguna (User Token) dari Graph API Explorer — kosongkan untuk auto-refresh'
+        required: false
         type: string
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout kode
         uses: actions/checkout@v4
@@ -23,8 +28,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests PyNaCl
 
-      - name: Generate token permanen
+      - name: Refresh token (manual atau otomatis)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          # Dipakai saat auto-refresh (tidak ada user_token)
+          FACEBOOK_LONG_TOKEN: ${{ secrets.FACEBOOK_LONG_TOKEN }}
         run: |
-          python get_permanent_token.py "${{ github.event.inputs.user_token }}"
+          USER_TOKEN="${{ github.event.inputs.user_token }}"
+          if [ -n "$USER_TOKEN" ]; then
+            echo "Mode: manual (user_token disediakan)"
+            python get_permanent_token.py "$USER_TOKEN"
+          else
+            echo "Mode: auto-refresh (gunakan FACEBOOK_LONG_TOKEN)"
+            python get_permanent_token.py
+          fi

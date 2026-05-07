@@ -5,6 +5,7 @@ Cara pakai:
   python get_permanent_token.py USER_TOKEN
 
 Atau lewat GitHub Actions (workflow token-refresh.yml).
+Auto-refresh: jika tidak ada USER_TOKEN, gunakan FACEBOOK_LONG_TOKEN dari env.
 """
 import sys
 import os
@@ -55,15 +56,18 @@ def get_page_token(long_lived_user_token: str) -> str:
     raise ValueError(f"Halaman dengan ID {PAGE_ID} tidak ditemukan.")
 
 
-def update_github_secret(token: str):
-    """Update FACEBOOK_ACCESS_TOKEN di GitHub Secrets."""
+def update_github_secret(secret_name: str, secret_value: str):
+    """Update secret di GitHub menggunakan GH_PAT atau GITHUB_TOKEN."""
     try:
         import base64
         from nacl import encoding, public
 
-        gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+        # Utamakan GH_PAT (PAT dengan permission secrets:write)
+        gh_token = os.environ.get("GH_PAT", "").strip()
         if not gh_token:
-            print("  ⚠ GITHUB_TOKEN tidak tersedia, skip update secret.")
+            gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+        if not gh_token:
+            print(f"  ⚠ Token GitHub tidak tersedia, skip update {secret_name}.")
             return
 
         session = requests.Session()
@@ -82,34 +86,43 @@ def update_github_secret(token: str):
 
         pk        = public.PublicKey(pub_key.encode(), encoding.Base64Encoder())
         box       = public.SealedBox(pk)
-        encrypted = base64.b64encode(box.encrypt(token.encode())).decode()
+        encrypted = base64.b64encode(box.encrypt(secret_value.encode())).decode()
 
         r2 = session.put(
-            "https://api.github.com/repos/arisknm/Facebook-pro/actions/secrets/FACEBOOK_ACCESS_TOKEN",
+            f"https://api.github.com/repos/arisknm/Facebook-pro/actions/secrets/{secret_name}",
             json={"encrypted_value": encrypted, "key_id": key_id},
         )
         if r2.status_code in (201, 204):
-            print("  ✓ GitHub Secret FACEBOOK_ACCESS_TOKEN diupdate otomatis")
+            print(f"  ✓ GitHub Secret {secret_name} diupdate otomatis")
         else:
-            print(f"  ✗ Gagal update secret: {r2.status_code}")
+            print(f"  ✗ Gagal update {secret_name}: {r2.status_code} — {r2.text}")
     except Exception as e:
-        print(f"  ⚠ Tidak bisa update GitHub Secret: {e}")
+        print(f"  ⚠ Tidak bisa update GitHub Secret {secret_name}: {e}")
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Penggunaan: python get_permanent_token.py USER_TOKEN")
-        print("\nCara dapat USER_TOKEN:")
-        print("1. Buka https://developers.facebook.com/tools/explorer/")
-        print("2. Pilih app Football Automation")
-        print("3. Pastikan dropdown: Token Pengguna (bukan Token Halaman)")
-        print("4. Klik Generate Access Token")
-        print("5. Salin token → jalankan script ini")
-        sys.exit(1)
+    # Ambil user_token dari argumen atau env FACEBOOK_LONG_TOKEN (auto-refresh)
+    if len(sys.argv) >= 2:
+        user_token = sys.argv[1].strip()
+        mode = "manual"
+    else:
+        user_token = os.environ.get("FACEBOOK_LONG_TOKEN", "").strip()
+        mode = "auto"
+        if not user_token:
+            print("Penggunaan: python get_permanent_token.py USER_TOKEN")
+            print("\nAtau set env FACEBOOK_LONG_TOKEN untuk auto-refresh.")
+            print("\nCara dapat USER_TOKEN:")
+            print("1. Buka https://developers.facebook.com/tools/explorer/")
+            print("2. Pilih app Football Automation")
+            print("3. Pastikan dropdown: Token Pengguna (bukan Token Halaman)")
+            print("4. Klik Generate Access Token")
+            print("5. Salin token → jalankan script ini")
+            sys.exit(1)
 
-    user_token = sys.argv[1].strip()
     print("=" * 55)
     print("  GENERATE TOKEN FACEBOOK PERMANEN")
+    if mode == "auto":
+        print("  Mode: AUTO-REFRESH (dari FACEBOOK_LONG_TOKEN)")
     print("=" * 55)
 
     print("\n1. Menukar ke long-lived user token (60 hari)...")
@@ -120,7 +133,11 @@ def main():
         print(f"   ✗ Gagal: {e}")
         sys.exit(1)
 
-    print("\n2. Mengambil Page Access Token permanen...")
+    # Simpan long-lived token ke secret agar bisa auto-refresh bulan depan
+    print("\n2. Menyimpan long-lived token untuk auto-refresh...")
+    update_github_secret("FACEBOOK_LONG_TOKEN", long_token)
+
+    print("\n3. Mengambil Page Access Token permanen...")
     try:
         page_token = get_page_token(long_token)
         print("   ✓ Page Access Token permanen didapat!")
@@ -128,13 +145,13 @@ def main():
         print(f"   ✗ Gagal: {e}")
         sys.exit(1)
 
-    print("\n3. Menyimpan token...")
+    print("\n4. Menyimpan token...")
     print(f"\nTOKEN PERMANEN:\n{page_token}\n")
 
-    # Update GitHub Secret jika GITHUB_TOKEN tersedia
-    update_github_secret(page_token)
+    # Update FACEBOOK_ACCESS_TOKEN di GitHub Secrets
+    update_github_secret("FACEBOOK_ACCESS_TOKEN", page_token)
 
-    # Update .env lokal
+    # Update .env lokal jika ada
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     if os.path.exists(env_path):
         with open(env_path, "r") as f:

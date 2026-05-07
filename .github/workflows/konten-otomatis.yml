@@ -51,12 +51,12 @@ jobs:
       - name: Refresh token permanen (jika user_token diisi)
         if: ${{ github.event.inputs.user_token != '' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           echo "Menjalankan refresh token permanen..."
           OUTPUT=$(python get_permanent_token.py "${{ github.event.inputs.user_token }}")
           echo "$OUTPUT"
-          NEW_TOKEN=$(echo "$OUTPUT" | grep "^EAA" | tail -1)
+          NEW_TOKEN=$(echo "$OUTPUT" | grep -m1 "^EAA")
           if [ -n "$NEW_TOKEN" ]; then
             echo "FACEBOOK_ACCESS_TOKEN=$NEW_TOKEN" >> $GITHUB_ENV
             echo "✓ Token diperbarui untuk sesi ini"
