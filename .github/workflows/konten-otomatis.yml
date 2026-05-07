@@ -11,7 +11,12 @@ on:
     - cron: '0 16 * * *'    # 23:00 WIB — rekap hasil
     - cron: '30 16 * * *'   # 23:30 WIB — statistik malam
     - cron: '0 3 * * 1'     # 10:00 WIB Senin — klasemen mingguan
-  workflow_dispatch:        # bisa dijalankan manual dari GitHub
+  workflow_dispatch:
+    inputs:
+      user_token:
+        description: '(Opsional) Token Pengguna Facebook untuk refresh token permanen'
+        required: false
+        default: ''
 
 env:
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -36,15 +41,32 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt PyNaCl
 
       - name: Buat folder yang dibutuhkan
         run: mkdir -p logs output videos/uploaded
 
+      - name: Refresh token permanen (jika user_token diisi)
+        if: ${{ github.event.inputs.user_token != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Menjalankan refresh token permanen..."
+          python get_permanent_token.py "${{ github.event.inputs.user_token }}"
+          # Update FACEBOOK_ACCESS_TOKEN env untuk steps berikutnya
+          NEW_TOKEN=$(python -c "
+          import os
+          with open('.env') as f:
+              for line in f:
+                  if line.startswith('FACEBOOK_ACCESS_TOKEN='):
+                      print(line.strip().split('=',1)[1])
+          ")
+          echo "FACEBOOK_ACCESS_TOKEN=$NEW_TOKEN" >> $GITHUB_ENV
+          echo "✓ Token diperbarui untuk sesi ini"
+
       - name: Tentukan job berdasarkan waktu
         id: job
         run: |
-          # Jika dijalankan manual (workflow_dispatch) → selalu semua
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "perintah=semua" >> $GITHUB_OUTPUT
             echo "Trigger: manual → jalankan semua konten"
