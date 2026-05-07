@@ -3,8 +3,10 @@ Setup otomatis GitHub Actions Secrets.
 Jalankan sekali dari GitHub Codespaces — semua secrets langsung tersimpan.
 
 Cara pakai:
-  python setup_github_secrets.py
+  python setup_github_secrets.py                           # update semua secrets
+  python setup_github_secrets.py --token TOKEN_BARU       # update hanya FACEBOOK_ACCESS_TOKEN
 """
+import argparse
 import base64
 import json
 import os
@@ -67,28 +69,39 @@ def set_secret(session: requests.Session, key_id: str, pub_key: str, name: str, 
 # ------------------------------------------------------------------ #
 
 def main():
+    parser = argparse.ArgumentParser(description="Setup GitHub Actions Secrets")
+    parser.add_argument(
+        "--token",
+        metavar="FACEBOOK_TOKEN",
+        help="Update hanya FACEBOOK_ACCESS_TOKEN dengan token baru",
+    )
+    args = parser.parse_args()
+
     print("=" * 55)
-    print("  SETUP GITHUB ACTIONS SECRETS OTOMATIS")
+    if args.token:
+        print("  UPDATE FACEBOOK ACCESS TOKEN")
+    else:
+        print("  SETUP GITHUB ACTIONS SECRETS OTOMATIS")
     print("=" * 55)
     print(f"\nRepository: {REPO_OWNER}/{REPO_NAME}\n")
 
     # Cek token dari environment (Codespaces otomatis punya GITHUB_TOKEN)
-    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
 
-    if not token:
+    if not gh_token:
         print("GitHub token tidak ditemukan otomatis.")
         print("Buat token di: github.com → Settings → Developer settings")
         print("→ Personal access tokens → Fine-grained tokens")
         print("→ Permissions: Secrets (read & write)\n")
-        token = input("Paste GitHub Token: ").strip()
+        gh_token = input("Paste GitHub Token: ").strip()
 
-    if not token:
+    if not gh_token:
         print("Token diperlukan. Batalkan.")
         sys.exit(1)
 
     session = requests.Session()
     session.headers.update({
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {gh_token}",
         "Accept"       : "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     })
@@ -109,16 +122,40 @@ def main():
         print("Pastikan token punya akses ke repository ini.")
         sys.exit(1)
 
-    # Upload semua secrets
-    print(f"\nMengupload {len(SECRETS)} secrets...\n")
-    for name, value in SECRETS.items():
-        set_secret(session, key_id, pub_key, name, value)
+    if args.token:
+        # Update hanya Facebook token
+        new_fb_token = args.token.strip()
+        if not new_fb_token:
+            print("Token Facebook tidak boleh kosong.")
+            sys.exit(1)
+        print("\nMengupdate FACEBOOK_ACCESS_TOKEN...\n")
+        set_secret(session, key_id, pub_key, "FACEBOOK_ACCESS_TOKEN", new_fb_token)
+        # Update .env juga
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(env_path):
+            with open(env_path, "r") as f:
+                content = f.read()
+            old_line = [l for l in content.splitlines() if l.startswith("FACEBOOK_ACCESS_TOKEN=")]
+            if old_line:
+                content = content.replace(old_line[0], f"FACEBOOK_ACCESS_TOKEN={new_fb_token}")
+                with open(env_path, "w") as f:
+                    f.write(content)
+                print("  ✓ .env juga diupdate")
+    else:
+        # Upload semua secrets
+        print(f"\nMengupload {len(SECRETS)} secrets...\n")
+        for name, value in SECRETS.items():
+            set_secret(session, key_id, pub_key, name, value)
 
     print("\n" + "=" * 55)
-    print("  SELESAI! Semua secrets sudah tersimpan.")
+    print("  SELESAI!")
     print("=" * 55)
-    print("\nSekarang buka tab Actions di GitHub untuk")
-    print("menjalankan workflow 'Konten Bola Otomatis'.")
+    if args.token:
+        print("\nSekarang jalankan workflow dari GitHub Actions")
+        print("untuk memverifikasi posting ke Facebook.")
+    else:
+        print("\nSekarang buka tab Actions di GitHub untuk")
+        print("menjalankan workflow 'Konten Bola Otomatis'.")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,51 @@ def _check_config():
         )
 
 
+def _raise_facebook_error(resp: requests.Response):
+    """Raise exception dengan pesan error Facebook yang jelas."""
+    try:
+        err = resp.json().get("error", {})
+        code = err.get("code", resp.status_code)
+        msg = err.get("message", resp.text[:200])
+        subcode = err.get("error_subcode", "")
+        hint = ""
+        if code == 190 or subcode in (463, 467):
+            hint = "\n→ Token expired! Buat token baru di: https://developers.facebook.com/tools/explorer/"
+        elif code == 200:
+            hint = "\n→ Token tidak punya izin pages_manage_posts. Tambahkan permission tersebut."
+        elif code == 100:
+            hint = f"\n→ Page ID salah atau tidak ditemukan: {FACEBOOK_PAGE_ID}"
+        raise requests.HTTPError(
+            f"Facebook API error {code}: {msg}{hint}", response=resp
+        )
+    except (ValueError, KeyError):
+        resp.raise_for_status()
+
+
+def cek_token() -> dict:
+    """Verifikasi token dan ambil info page. Return dict dengan status."""
+    _check_config()
+    resp = requests.get(
+        f"{GRAPH_BASE}/me",
+        params={"access_token": FACEBOOK_ACCESS_TOKEN, "fields": "id,name"},
+        timeout=10,
+    )
+    if not resp.ok:
+        _raise_facebook_error(resp)
+    me = resp.json()
+
+    page_resp = requests.get(
+        f"{GRAPH_BASE}/{FACEBOOK_PAGE_ID}",
+        params={"access_token": FACEBOOK_ACCESS_TOKEN, "fields": "id,name,fan_count"},
+        timeout=10,
+    )
+    if not page_resp.ok:
+        _raise_facebook_error(page_resp)
+    page = page_resp.json()
+
+    return {"token_user": me, "page": page, "status": "OK"}
+
+
 def post_teks(caption: str) -> dict:
     """Upload post teks ke Facebook Page."""
     _check_config()
@@ -25,7 +70,8 @@ def post_teks(caption: str) -> dict:
         },
         timeout=30,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        _raise_facebook_error(resp)
     return resp.json()
 
 
@@ -41,7 +87,8 @@ def post_dengan_gambar(caption: str, url_gambar: str) -> dict:
         },
         timeout=30,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        _raise_facebook_error(resp)
     return resp.json()
 
 
@@ -60,7 +107,8 @@ def post_dengan_video(caption: str, url_video: str, judul: str = "") -> dict:
         data=data,
         timeout=60,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        _raise_facebook_error(resp)
     return resp.json()
 
 
@@ -81,7 +129,8 @@ def jadwalkan_post(caption: str, timestamp_unix: int, url_gambar: str = "") -> d
         data=data,
         timeout=30,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        _raise_facebook_error(resp)
     return resp.json()
 
 
@@ -97,5 +146,6 @@ def get_page_insights() -> dict:
         },
         timeout=10,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        _raise_facebook_error(resp)
     return resp.json()
