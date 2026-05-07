@@ -44,24 +44,30 @@ jobs:
       - name: Tentukan job berdasarkan waktu
         id: job
         run: |
-          MENIT=$(date -u +"%H%M")
-          echo "Waktu UTC: $MENIT"
-          if   [ "$MENIT" -ge "2320" ] || [ "$MENIT" -lt "0030" ]; then
-            echo "perintah=transfer" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "0050" ] && [ "$MENIT" -lt "0130" ]; then
-            echo "perintah=preview --facebook" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "0450" ] && [ "$MENIT" -lt "0530" ]; then
-            echo "perintah=polling" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "0750" ] && [ "$MENIT" -lt "0830" ]; then
-            echo "perintah=viral" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "1150" ] && [ "$MENIT" -lt "1230" ]; then
-            echo "perintah=pengingat" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "1550" ] && [ "$MENIT" -lt "1630" ]; then
-            echo "perintah=rekap --facebook" >> $GITHUB_OUTPUT
-          elif [ "$MENIT" -ge "1620" ] && [ "$MENIT" -lt "1700" ]; then
-            echo "perintah=statistik" >> $GITHUB_OUTPUT
-          else
+          # Jika dijalankan manual (workflow_dispatch) → selalu semua
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "perintah=semua" >> $GITHUB_OUTPUT
+            echo "Trigger: manual → jalankan semua konten"
+          else
+            MENIT=$(date -u +"%H%M")
+            echo "Trigger: schedule, Waktu UTC: $MENIT"
+            if   [ "$MENIT" -ge "2320" ] || [ "$MENIT" -lt "0030" ]; then
+              echo "perintah=transfer" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "0050" ] && [ "$MENIT" -lt "0130" ]; then
+              echo "perintah=preview --facebook" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "0450" ] && [ "$MENIT" -lt "0530" ]; then
+              echo "perintah=polling" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "0750" ] && [ "$MENIT" -lt "0830" ]; then
+              echo "perintah=viral" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "1150" ] && [ "$MENIT" -lt "1230" ]; then
+              echo "perintah=pengingat" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "1550" ] && [ "$MENIT" -lt "1630" ]; then
+              echo "perintah=rekap --facebook" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "1620" ] && [ "$MENIT" -lt "1700" ]; then
+              echo "perintah=statistik" >> $GITHUB_OUTPUT
+            else
+              echo "perintah=semua" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Jalankan posting
