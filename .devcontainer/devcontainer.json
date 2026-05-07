@@ -1,0 +1,10 @@
+{
+  "name": "Football Content Agent",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "pip install -r requirements.txt PyNaCl -q && python setup_github_secrets.py",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}
