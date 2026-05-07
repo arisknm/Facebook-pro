@@ -188,6 +188,9 @@ Posting Facebook manual:
     # stats channel
     sub.add_parser("stats", help="Statistik Facebook & YouTube")
 
+    # cek token
+    sub.add_parser("cek-token", help="Verifikasi token Facebook (debug)")
+
     # scheduler
     sub.add_parser("jadwal", help="Jalankan scheduler otomatis (daemon)")
 
@@ -309,6 +312,28 @@ Posting Facebook manual:
     elif args.perintah == "stats":
         stats = agent.tampilkan_statistik()
         print(json.dumps(stats, indent=2, ensure_ascii=False))
+
+    elif args.perintah == "cek-token":
+        import facebook_publisher as fb_pub
+        print("Memeriksa token Facebook...")
+        try:
+            info = fb_pub.cek_token()
+            print("\n✓ TOKEN VALID")
+            print(f"  User/App: {info['token_user'].get('name', info['token_user'].get('id'))}")
+            print(f"  Page    : {info['page'].get('name')} (ID: {info['page'].get('id')})")
+            fans = info['page'].get('fan_count')
+            if fans is not None:
+                print(f"  Followers: {fans:,}")
+            print("\nToken aktif — siap posting ke Facebook!")
+        except Exception as e:
+            print(f"\n✗ TOKEN BERMASALAH: {e}")
+            print("\nSolusi:")
+            print("1. Buka: https://developers.facebook.com/tools/explorer/")
+            print("2. Pilih App → Generate Access Token")
+            print("3. Tambahkan permission: pages_manage_posts, pages_read_engagement")
+            print("4. Klik 'Generate Access Token'")
+            print("5. Salin token baru ke .env atau GitHub Secrets")
+            sys.exit(1)
 
     elif args.perintah == "jadwal":
         from scheduler import main as run_scheduler

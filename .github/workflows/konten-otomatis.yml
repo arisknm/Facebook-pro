@@ -70,6 +70,11 @@ jobs:
             fi
           fi
 
+      - name: Verifikasi token Facebook
+        run: |
+          echo "Memeriksa token Facebook..."
+          python main.py cek-token || echo "⚠️  Token bermasalah — cek log di atas"
+
       - name: Jalankan posting
         run: |
           echo "Menjalankan: python main.py ${{ steps.job.outputs.perintah }}"
