@@ -1,144 +1,105 @@
 """
-Pengambil berita sepak bola via NewsAPI.org.
+Pengambil berita sepak bola via RSS feed (gratis, tanpa API key).
+Sumber: BBC Sport, Sky Sports, ESPN FC, Goal.com
 """
 import logging
 import requests
-from config import NEWS_API_KEY
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
-NEWS_BASE = "https://newsapi.org/v2"
+RSS_FEEDS = {
+    "bbc_sport"  : "https://feeds.bbci.co.uk/sport/football/rss.xml",
+    "sky_sports" : "https://www.skysports.com/rss/12040",
+    "espn"       : "https://www.espn.com/espn/rss/soccer/news",
+    "goal"       : "https://www.goal.com/feeds/en/news",
+}
 
-QUERY_TRANSFER = (
-    "football transfer OR pemain bola pindah OR bola transfer"
-)
-QUERY_VIRAL = (
-    "sepak bola OR football goal OR football match OR Liga 1"
-)
+RSS_TRANSFER = {
+    "bbc_sport"  : "https://feeds.bbci.co.uk/sport/football/rss.xml",
+    "sky_sports" : "https://www.skysports.com/rss/12040",
+}
 
 
-def _check_config():
-    if not NEWS_API_KEY:
-        raise ValueError("NEWS_API_KEY harus diisi di .env")
+def _fetch_rss(url: str, timeout: int = 10) -> list[dict]:
+    """Fetch dan parse RSS feed, return list of {title, description, link, pubDate}."""
+    try:
+        resp = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
+        items = []
+        ns = {"media": "http://search.yahoo.com/mrss/"}
+        for item in root.findall(".//item"):
+            title = (item.findtext("title") or "").strip()
+            desc  = (item.findtext("description") or "").strip()
+            link  = (item.findtext("link") or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
+            if title and "[Removed]" not in title:
+                items.append({
+                    "title"       : title,
+                    "description" : desc[:200] if desc else "",
+                    "url"         : link,
+                    "published_at": pub,
+                    "source"      : url,
+                })
+        return items
+    except Exception as e:
+        log.warning(f"RSS gagal ({url}): {e}")
+        return []
+
+
+def _filter_transfer(articles: list[dict]) -> list[dict]:
+    """Filter artikel yang berkaitan dengan transfer pemain."""
+    kata_kunci = [
+        "transfer", "signing", "sign", "deal", "move", "loan",
+        "bid", "fee", "contract", "pindah", "gabung", "rekrut",
+        "beli", "jual", "hengkang",
+    ]
+    hasil = []
+    seen = set()
+    for a in articles:
+        teks = (a["title"] + " " + a["description"]).lower()
+        if any(k in teks for k in kata_kunci) and a["title"] not in seen:
+            seen.add(a["title"])
+            hasil.append(a)
+    return hasil
 
 
 def get_transfer_news(jumlah: int = 5) -> list[dict]:
-    """
-    Ambil berita transfer terbaru.
+    """Ambil berita transfer terkini dari RSS feeds."""
+    semua = []
+    for url in RSS_TRANSFER.values():
+        semua.extend(_fetch_rss(url))
 
-    Returns list of dict: title, description, source, url, publishedAt.
-    """
-    _check_config()
-    resp = requests.get(
-        f"{NEWS_BASE}/everything",
-        params={
-            "q": QUERY_TRANSFER,
-            "language": "id",
-            "sortBy": "publishedAt",
-            "pageSize": max(jumlah * 2, 10),  # ambil lebih, filter duplikat
-            "apiKey": NEWS_API_KEY,
-        },
-        timeout=10,
-    )
+    filtered = _filter_transfer(semua)
 
-    # Fallback ke bahasa Inggris jika hasil Indonesia kosong
-    if resp.ok:
-        articles = resp.json().get("articles", [])
-    else:
-        articles = []
+    # Jika tidak cukup artikel transfer, ambil berita umum
+    if len(filtered) < jumlah:
+        for url in RSS_FEEDS.values():
+            semua.extend(_fetch_rss(url))
+        filtered = _filter_transfer(semua)
 
-    if not articles:
-        resp = requests.get(
-            f"{NEWS_BASE}/everything",
-            params={
-                "q": "football transfer news",
-                "language": "en",
-                "sortBy": "publishedAt",
-                "pageSize": max(jumlah * 2, 10),
-                "apiKey": NEWS_API_KEY,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        articles = resp.json().get("articles", [])
-
-    hasil = []
-    seen = set()
-    for a in articles:
-        judul = a.get("title", "") or ""
-        if not judul or judul in seen or "[Removed]" in judul:
-            continue
-        seen.add(judul)
-        hasil.append({
-            "title": judul,
-            "description": a.get("description", "") or "",
-            "source": a.get("source", {}).get("name", ""),
-            "url": a.get("url", ""),
-            "published_at": a.get("publishedAt", ""),
-        })
-        if len(hasil) >= jumlah:
-            break
-
-    log.info(f"NewsAPI: {len(hasil)} berita transfer ditemukan.")
-    return hasil
+    log.info(f"RSS: {len(filtered)} berita transfer ditemukan.")
+    return filtered[:jumlah]
 
 
 def get_viral_topics(jumlah: int = 5) -> list[dict]:
-    """
-    Ambil topik viral sepak bola hari ini.
-
-    Returns list of dict: title, description, source, url, publishedAt.
-    """
-    _check_config()
-    resp = requests.get(
-        f"{NEWS_BASE}/top-headlines",
-        params={
-            "q": "football OR sepak bola",
-            "category": "sports",
-            "language": "id",
-            "pageSize": max(jumlah * 2, 10),
-            "apiKey": NEWS_API_KEY,
-        },
-        timeout=10,
-    )
-
-    articles = resp.json().get("articles", []) if resp.ok else []
-
-    # Fallback: everything endpoint jika top-headlines kosong
-    if not articles:
-        resp = requests.get(
-            f"{NEWS_BASE}/everything",
-            params={
-                "q": "football viral OR football controversy OR bola viral",
-                "language": "en",
-                "sortBy": "popularity",
-                "pageSize": max(jumlah * 2, 10),
-                "apiKey": NEWS_API_KEY,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        articles = resp.json().get("articles", [])
-
-    hasil = []
+    """Ambil topik viral/berita terpopuler sepak bola dari RSS feeds."""
+    semua = []
     seen = set()
-    for a in articles:
-        judul = a.get("title", "") or ""
-        if not judul or judul in seen or "[Removed]" in judul:
-            continue
-        seen.add(judul)
-        hasil.append({
-            "title": judul,
-            "description": a.get("description", "") or "",
-            "source": a.get("source", {}).get("name", ""),
-            "url": a.get("url", ""),
-            "published_at": a.get("publishedAt", ""),
-        })
-        if len(hasil) >= jumlah:
+    hasil = []
+
+    for url in RSS_FEEDS.values():
+        for a in _fetch_rss(url):
+            if a["title"] not in seen:
+                seen.add(a["title"])
+                hasil.append(a)
+        if len(hasil) >= jumlah * 3:
             break
 
-    log.info(f"NewsAPI: {len(hasil)} topik viral ditemukan.")
-    return hasil
+    log.info(f"RSS: {len(hasil[:jumlah])} topik viral ditemukan.")
+    return hasil[:jumlah]
 
 
 def format_berita_untuk_prompt(berita_list: list[dict]) -> str:
@@ -147,7 +108,7 @@ def format_berita_untuk_prompt(berita_list: list[dict]) -> str:
     for i, b in enumerate(berita_list, 1):
         baris.append(f"{i}. {b['title']}")
         if b.get("description"):
-            baris.append(f"   {b['description'][:120]}")
+            baris.append(f"   {b['description'][:150]}")
         if b.get("source"):
             baris.append(f"   Sumber: {b['source']}")
     return "\n".join(baris)
