@@ -30,6 +30,9 @@ env:
 jobs:
   posting:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      secrets: write
     steps:
       - name: Checkout kode
         uses: actions/checkout@v4
@@ -52,17 +55,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Menjalankan refresh token permanen..."
-          python get_permanent_token.py "${{ github.event.inputs.user_token }}"
-          # Update FACEBOOK_ACCESS_TOKEN env untuk steps berikutnya
-          NEW_TOKEN=$(python -c "
-          import os
-          with open('.env') as f:
-              for line in f:
-                  if line.startswith('FACEBOOK_ACCESS_TOKEN='):
-                      print(line.strip().split('=',1)[1])
-          ")
-          echo "FACEBOOK_ACCESS_TOKEN=$NEW_TOKEN" >> $GITHUB_ENV
-          echo "✓ Token diperbarui untuk sesi ini"
+          OUTPUT=$(python get_permanent_token.py "${{ github.event.inputs.user_token }}")
+          echo "$OUTPUT"
+          NEW_TOKEN=$(echo "$OUTPUT" | grep "^EAA" | tail -1)
+          if [ -n "$NEW_TOKEN" ]; then
+            echo "FACEBOOK_ACCESS_TOKEN=$NEW_TOKEN" >> $GITHUB_ENV
+            echo "✓ Token diperbarui untuk sesi ini"
+          fi
 
       - name: Tentukan job berdasarkan waktu
         id: job
