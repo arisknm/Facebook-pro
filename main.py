@@ -95,6 +95,16 @@ Contoh penggunaan:
   python main.py yt-update dQw4w9WgXcQ --privasi public
   python main.py stats                             # Statistik channel
   python main.py jadwal                            # Jalankan scheduler otomatis
+
+Posting Facebook manual:
+  python main.py transfer                          # Berita transfer (job 06:30)
+  python main.py preview --facebook                # Preview pertandingan (job 08:00)
+  python main.py polling                           # Polling interaktif (job 12:00)
+  python main.py viral                             # Topik viral (job 15:00)
+  python main.py pengingat                         # Pengingat malam (job 19:00)
+  python main.py rekap --facebook                  # Rekap hasil (job 23:00)
+  python main.py statistik                         # Statistik malam (job 23:30)
+  python main.py semua                             # Posting SEMUA ke Facebook sekarang
         """,
     )
     sub = parser.add_subparsers(dest="perintah")
@@ -180,6 +190,14 @@ Contoh penggunaan:
 
     # scheduler
     sub.add_parser("jadwal", help="Jalankan scheduler otomatis (daemon)")
+
+    # --- job harian manual ---
+    sub.add_parser("transfer",  help="[Facebook] Berita transfer terkini (job 06:30)")
+    sub.add_parser("polling",   help="[Facebook] Polling pertandingan malam ini (job 12:00)")
+    sub.add_parser("viral",     help="[Facebook] Topik viral sepak bola (job 15:00)")
+    sub.add_parser("pengingat", help="[Facebook] Pengingat pertandingan malam (job 19:00)")
+    sub.add_parser("statistik", help="[Facebook] Statistik menarik malam ini (job 23:30)")
+    sub.add_parser("semua",     help="[Facebook] Posting SEMUA konten hari ini sekarang")
 
     args = parser.parse_args()
 
@@ -296,6 +314,70 @@ Contoh penggunaan:
         from scheduler import main as run_scheduler
         print("Menjalankan scheduler... (Ctrl+C untuk berhenti)")
         run_scheduler()
+
+    elif args.perintah == "transfer":
+        print("Posting berita transfer ke Facebook...")
+        hasil = agent.posting_berita_transfer()
+        if "konten" in hasil:
+            cetak_konten(hasil["konten"])
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
+    elif args.perintah == "polling":
+        print("Posting polling interaktif ke Facebook...")
+        hasil = agent.posting_polling()
+        if "caption" in hasil:
+            print("\n" + "=" * 60)
+            print(hasil["caption"])
+            print("=" * 60)
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
+    elif args.perintah == "viral":
+        print("Posting topik viral ke Facebook...")
+        hasil = agent.posting_topik_viral()
+        if "konten" in hasil:
+            cetak_konten(hasil["konten"])
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
+    elif args.perintah == "pengingat":
+        print("Posting pengingat pertandingan ke Facebook...")
+        hasil = agent.posting_pengingat_pertandingan()
+        if "caption" in hasil:
+            print("\n" + "=" * 60)
+            print(hasil["caption"])
+            print("=" * 60)
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
+    elif args.perintah == "statistik":
+        print("Posting statistik malam ke Facebook...")
+        hasil = agent.posting_statistik_malam()
+        if "caption" in hasil:
+            print("\n" + "=" * 60)
+            print(hasil["caption"])
+            print("=" * 60)
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
+    elif args.perintah == "semua":
+        jobs = [
+            ("Berita transfer",        agent.posting_berita_transfer),
+            ("Preview pertandingan",   agent.posting_preview_hari_ini),
+            ("Polling interaktif",     agent.posting_polling),
+            ("Topik viral",            agent.posting_topik_viral),
+            ("Pengingat pertandingan", agent.posting_pengingat_pertandingan),
+            ("Rekap hasil kemarin",    agent.posting_rekap_kemarin),
+            ("Statistik malam",        agent.posting_statistik_malam),
+        ]
+        print(f"\nMemposting {len(jobs)} konten ke Facebook...\n")
+        for nama, fn in jobs:
+            print(f"  [{nama}]...")
+            try:
+                hasil = fn()
+                platform = hasil.get("platform", [])
+                fb_ok = any("facebook" in p and "error" not in p for p in platform)
+                status = "BERHASIL" if fb_ok else hasil.get("status", "tidak_ada_data")
+            except Exception as e:
+                status = f"ERROR: {e}"
+            print(f"  → {status}\n")
+        print("Selesai.")
 
 
 if __name__ == "__main__":
