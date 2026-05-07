@@ -4,7 +4,7 @@ Agent utama: orkestrasi pengambilan data, pembuatan konten, dan publishing.
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from config import LIGA_FAVORIT, OUTPUT_DIR
@@ -182,8 +182,9 @@ class FootballContentAgent:
         file_path: str,
         topik: str,
         privasi: str = "public",
+        waktu_publish: datetime | None = None,
     ) -> dict:
-        """Generate konten YouTube lalu upload video."""
+        """Generate konten YouTube lalu upload video (dengan progress & retry)."""
         konten = gen.buat_konten_bebas(topik)
         log.info(f"Mengupload video: {file_path}")
         res = yt.upload_video(
@@ -192,10 +193,31 @@ class FootballContentAgent:
             deskripsi=konten["youtube_description"],
             tags=konten["youtube_tags"],
             privasi=privasi,
+            waktu_publish=waktu_publish,
         )
         video_id = res.get("id", "")
-        log.info(f"YouTube: video diupload — ID {video_id}")
-        return {"youtube": res, "konten": konten}
+        url = f"https://youtu.be/{video_id}" if video_id else ""
+        log.info(f"YouTube: video diupload — ID {video_id} | {url}")
+        return {"youtube": res, "video_id": video_id, "url": url, "konten": konten}
+
+    def perbarui_video_youtube(
+        self,
+        video_id: str,
+        judul: str | None = None,
+        deskripsi: str | None = None,
+        tags: list[str] | None = None,
+        privasi: str | None = None,
+    ) -> dict:
+        """Update metadata video YouTube yang sudah ada."""
+        return yt.perbarui_video(video_id, judul, deskripsi, tags, privasi)
+
+    def stats_video_youtube(self, video_id: str) -> dict:
+        """Ambil statistik video tertentu."""
+        return yt.get_video_stats(video_id)
+
+    def list_video_youtube(self, max_results: int = 10) -> list[dict]:
+        """Ambil daftar video terbaru dari channel."""
+        return yt.list_videos(max_results)
 
     def posting_ke_facebook_dengan_gambar(
         self, topik: str, url_gambar: str

@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import logging
+from datetime import datetime
 from pathlib import Path
 
 logging.basicConfig(
@@ -36,20 +37,64 @@ def cetak_konten(konten: dict):
     print("=" * 60 + "\n")
 
 
+def cetak_video_stats(stats: dict):
+    print("\n" + "=" * 60)
+    print(f"VIDEO  : {stats['title']}")
+    print(f"ID     : {stats['video_id']}")
+    print(f"URL    : {stats['url']}")
+    print(f"Tayang : {stats['published_at']}")
+    print(f"Durasi : {stats['duration']}")
+    print("-" * 60)
+    print(f"Views     : {stats['views']:,}")
+    print(f"Likes     : {stats['likes']:,}")
+    print(f"Komentar  : {stats['comments']:,}")
+    print("=" * 60 + "\n")
+
+
+def cetak_list_video(videos: list[dict]):
+    print("\n" + "=" * 60)
+    print(f"{'#':<4} {'Views':>8}  {'Likes':>7}  Judul")
+    print("-" * 60)
+    for i, v in enumerate(videos, 1):
+        judul = v["title"][:45]
+        print(f"{i:<4} {v['views']:>8,}  {v['likes']:>7,}  {judul}")
+        print(f"     {v['url']}")
+    print("=" * 60 + "\n")
+
+
+def _parse_waktu(teks: str) -> datetime:
+    """Parse string 'YYYY-MM-DD HH:MM' menjadi datetime."""
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(teks, fmt)
+        except ValueError:
+            continue
+    raise argparse.ArgumentTypeError(
+        f"Format waktu tidak valid: '{teks}'. Gunakan YYYY-MM-DD HH:MM"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agent Konten Bola — Facebook & YouTube",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Contoh penggunaan:
-  python main.py preview                    # Preview pertandingan hari ini
-  python main.py rekap                      # Rekap hasil kemarin
-  python main.py klasemen "Premier League"  # Analisis klasemen
-  python main.py topik "El Clasico 2025"   # Konten topik bebas
+  python main.py preview                           # Preview pertandingan hari ini
+  python main.py rekap                             # Rekap hasil kemarin
+  python main.py klasemen "Premier League"         # Analisis klasemen
+  python main.py topik "El Clasico 2025"           # Konten topik bebas
   python main.py script "Top 5 Gol Minggu Ini" --durasi 7
-  python main.py upload video.mp4 "Match Highlights" --privasi unlisted
-  python main.py stats                      # Statistik channel
-  python main.py jadwal                     # Jalankan scheduler otomatis
+  python main.py upload video.mp4 "Match Highlights"
+  python main.py upload video.mp4 "Highlights" --privasi unlisted
+  python main.py upload video.mp4 "Highlights" --jadwal "2025-06-01 20:00"
+  python main.py yt-list                           # Daftar video channel
+  python main.py yt-list --jumlah 20
+  python main.py yt-video dQw4w9WgXcQ             # Statistik video
+  python main.py yt-update dQw4w9WgXcQ --judul "Judul Baru"
+  python main.py yt-update dQw4w9WgXcQ --privasi public
+  python main.py stats                             # Statistik channel
+  python main.py jadwal                            # Jalankan scheduler otomatis
         """,
     )
     sub = parser.add_subparsers(dest="perintah")
@@ -83,10 +128,54 @@ Contoh penggunaan:
     # upload youtube
     p_up = sub.add_parser("upload", help="Upload video ke YouTube")
     p_up.add_argument("file", help="Path file video")
-    p_up.add_argument("topik", help="Topik/judul video")
-    p_up.add_argument("--privasi", default="public", choices=["public", "unlisted", "private"])
+    p_up.add_argument("topik", help="Topik/judul video (untuk generate konten AI)")
+    p_up.add_argument(
+        "--privasi",
+        default="public",
+        choices=["public", "unlisted", "private"],
+        help="Status privasi (default: public)",
+    )
+    p_up.add_argument(
+        "--jadwal",
+        metavar="WAKTU",
+        type=_parse_waktu,
+        default=None,
+        help="Jadwal publikasi, format: 'YYYY-MM-DD HH:MM' (WIB/lokal). "
+             "Otomatis set privasi ke private hingga waktu publish.",
+    )
+    p_up.add_argument(
+        "--thumbnail",
+        metavar="FILE",
+        default=None,
+        help="Path gambar thumbnail (JPG/PNG) untuk diupload setelah video.",
+    )
 
-    # stats
+    # yt-list
+    p_list = sub.add_parser("yt-list", help="Daftar video terbaru channel")
+    p_list.add_argument("--jumlah", type=int, default=10, metavar="N", help="Jumlah video (default: 10)")
+
+    # yt-video (stats)
+    p_vid = sub.add_parser("yt-video", help="Statistik video tertentu")
+    p_vid.add_argument("video_id", help="ID video YouTube (misal: dQw4w9WgXcQ)")
+
+    # yt-update
+    p_upd = sub.add_parser("yt-update", help="Update metadata video")
+    p_upd.add_argument("video_id", help="ID video YouTube")
+    p_upd.add_argument("--judul", default=None, help="Judul baru")
+    p_upd.add_argument("--deskripsi", default=None, help="Deskripsi baru")
+    p_upd.add_argument(
+        "--tags",
+        default=None,
+        help="Tags baru, pisahkan dengan koma: 'bola,liga,gol'",
+    )
+    p_upd.add_argument(
+        "--privasi",
+        default=None,
+        choices=["public", "unlisted", "private"],
+        help="Status privasi baru",
+    )
+
+    # stats channel
     sub.add_parser("stats", help="Statistik Facebook & YouTube")
 
     # scheduler
@@ -99,6 +188,8 @@ Contoh penggunaan:
         sys.exit(0)
 
     agent = FootballContentAgent()
+
+    # ------------------------------------------------------------------ #
 
     if args.perintah == "preview":
         hasil = agent.posting_preview_hari_ini(
@@ -141,10 +232,61 @@ Contoh penggunaan:
         print(script)
 
     elif args.perintah == "upload":
-        hasil = agent.upload_video_ke_youtube(args.file, args.topik, args.privasi)
-        print(json.dumps(hasil.get("youtube", {}), indent=2))
+        hasil = agent.upload_video_ke_youtube(
+            args.file,
+            args.topik,
+            privasi=args.privasi,
+            waktu_publish=args.jadwal,
+        )
+
+        video_id = hasil.get("video_id", "")
+        url = hasil.get("url", "")
+
+        print("\n" + "=" * 60)
+        print("UPLOAD BERHASIL")
+        print("-" * 60)
+        print(f"Video ID : {video_id}")
+        print(f"URL      : {url}")
+        if args.jadwal:
+            print(f"Jadwal   : {args.jadwal.strftime('%Y-%m-%d %H:%M')} (privasi: private hingga publish)")
+        print("=" * 60)
+
         if "konten" in hasil:
             cetak_konten(hasil["konten"])
+
+        # Upload thumbnail jika disediakan
+        if args.thumbnail and video_id:
+            try:
+                import youtube_publisher as yt_pub
+                yt_pub.perbarui_thumbnail(video_id, args.thumbnail)
+                print(f"Thumbnail diupload untuk video {video_id}")
+            except Exception as e:
+                print(f"Gagal upload thumbnail: {e}")
+
+    elif args.perintah == "yt-list":
+        videos = agent.list_video_youtube(args.jumlah)
+        if not videos:
+            print("Tidak ada video ditemukan di channel.")
+        else:
+            cetak_list_video(videos)
+
+    elif args.perintah == "yt-video":
+        stats = agent.stats_video_youtube(args.video_id)
+        cetak_video_stats(stats)
+
+    elif args.perintah == "yt-update":
+        tags = None
+        if args.tags:
+            tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+
+        hasil = agent.perbarui_video_youtube(
+            args.video_id,
+            judul=args.judul,
+            deskripsi=args.deskripsi,
+            tags=tags,
+            privasi=args.privasi,
+        )
+        print(json.dumps(hasil, indent=2, ensure_ascii=False))
 
     elif args.perintah == "stats":
         stats = agent.tampilkan_statistik()
