@@ -5,7 +5,7 @@ Model: gemini-2.0-flash — via REST API (tidak butuh library tambahan).
 import requests
 from config import GEMINI_API_KEY
 
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-2.0-flash-lite"
 GEMINI_URL = (
     f"https://generativelanguage.googleapis.com/v1beta/models"
     f"/{MODEL}:generateContent"
