@@ -1,0 +1,30 @@
+name: Refresh Token Facebook
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_token:
+        description: 'Token Pengguna (User Token) dari Graph API Explorer'
+        required: true
+        type: string
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests PyNaCl
+
+      - name: Generate token permanen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python get_permanent_token.py "${{ github.event.inputs.user_token }}"
