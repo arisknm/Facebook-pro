@@ -16,6 +16,8 @@ import facebook_publisher as fb
 import youtube_publisher as yt
 import news_api as news
 import video_generator as vg
+import threads_publisher as threads
+from config import THREADS_USER_ID, THREADS_ACCESS_TOKEN
 
 log = logging.getLogger(__name__)
 
@@ -375,9 +377,11 @@ class FootballContentAgent:
     # ------------------------------------------------------------------ #
 
     def _post_facebook(self, caption: str, hasil: dict, image_url: str = "", judul: str = ""):
-        """Helper: posting ke Facebook.
-        Urutan fallback: video lokal → foto via URL → teks.
+        """Helper: posting ke Facebook + Threads secara bersamaan.
+        Urutan fallback Facebook: video lokal → foto via URL → teks.
+        Threads: foto via URL (Pollinations) → teks.
         """
+        # ── Facebook ──────────────────────────────────────────────────────
         try:
             if image_url:
                 video_path = vg.buat_video(judul or "Info Bola", caption, image_url)
@@ -386,31 +390,45 @@ class FootballContentAgent:
                         res = fb.upload_video_file(caption, video_path, judul)
                         log.info(f"Facebook: diposting sebagai VIDEO — ID {res.get('id')}")
                         hasil["platform"].append({"facebook": res, "tipe": "video"})
-                        return
                     except Exception as ev:
-                        log.warning(f"Upload video gagal ({ev}), fallback ke foto")
+                        log.warning(f"Upload video FB gagal ({ev}), fallback ke foto")
+                        res = fb.post_dengan_gambar(caption, image_url)
+                        log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
+                        hasil["platform"].append({"facebook": res, "tipe": "foto"})
                     finally:
                         try:
                             os.unlink(video_path)
                         except Exception:
                             pass
-
-                res = fb.post_dengan_gambar(caption, image_url)
-                log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
-                hasil["platform"].append({"facebook": res, "tipe": "foto"})
+                else:
+                    res = fb.post_dengan_gambar(caption, image_url)
+                    log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
+                    hasil["platform"].append({"facebook": res, "tipe": "foto"})
             else:
                 res = fb.post_teks(caption)
                 log.info(f"Facebook: diposting teks — ID {res.get('id')}")
                 hasil["platform"].append({"facebook": res, "tipe": "teks"})
         except Exception as e:
             log.error(f"Facebook gagal: {e}")
-            if image_url:
-                try:
-                    res = fb.post_teks(caption)
-                    hasil["platform"].append({"facebook": res, "tipe": "teks_fallback"})
-                    log.info("Facebook: fallback ke teks berhasil")
-                except Exception as e2:
-                    hasil["platform"].append({"facebook_error": str(e2)})
+            try:
+                res = fb.post_teks(caption)
+                hasil["platform"].append({"facebook": res, "tipe": "teks_fallback"})
+                log.info("Facebook: fallback ke teks berhasil")
+            except Exception as e2:
+                hasil["platform"].append({"facebook_error": str(e2)})
+
+        # ── Threads ───────────────────────────────────────────────────────
+        if THREADS_USER_ID and THREADS_ACCESS_TOKEN:
+            try:
+                if image_url:
+                    res_t = threads.post_dengan_gambar(caption, image_url)
+                else:
+                    res_t = threads.post_teks(caption)
+                log.info(f"Threads: diposting — ID {res_t.get('id')}")
+                hasil["platform"].append({"threads": res_t})
+            except Exception as et:
+                log.warning(f"Threads gagal: {et}")
+                hasil["platform"].append({"threads_error": str(et)})
 
     def _simpan_konten(self, nama: str, konten: dict):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
