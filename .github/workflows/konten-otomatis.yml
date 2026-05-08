@@ -25,6 +25,7 @@ env:
   FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
   THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
   THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+  SHOPEE_AFFILIATE_ID: ${{ secrets.SHOPEE_AFFILIATE_ID }}
   FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
   NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
   LIGA_FAVORIT: "Premier League,La Liga,Serie A,Bundesliga,Liga 1"

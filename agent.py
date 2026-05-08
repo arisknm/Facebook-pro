@@ -17,6 +17,7 @@ import youtube_publisher as yt
 import news_api as news
 import video_generator as vg
 import threads_publisher as threads
+import affiliate as aff
 from config import THREADS_USER_ID, THREADS_ACCESS_TOKEN
 
 log = logging.getLogger(__name__)
@@ -71,7 +72,8 @@ class FootballContentAgent:
                 teams = api.format_fixture_untuk_prompt(fixtures_depan[0])
                 image_url = gen.generate_image_url(f"H-{hari_lagi} {teams}", style="hype")
                 self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                                    judul=konten.get("youtube_title", f"H-{hari_lagi} Big Match!"))
+                                    judul=konten.get("youtube_title", f"H-{hari_lagi} Big Match!"),
+                                    tipe_aff="hype")
             return hasil
 
         fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
@@ -87,7 +89,8 @@ class FootballContentAgent:
             teams = " vs ".join([api.format_fixture_untuk_prompt(f) for f in fixtures[:1]])
             image_url = gen.generate_image_url(teams, style="football")
             self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                                judul=konten.get("youtube_title", "Preview Pertandingan Hari Ini"))
+                                judul=konten.get("youtube_title", "Preview Pertandingan Hari Ini"),
+                                tipe_aff="preview")
 
         if ke_youtube and konten.get("youtube_title"):
             log.info("YouTube: diperlukan file video. Gunakan upload_video_ke_youtube().")
@@ -120,7 +123,8 @@ class FootballContentAgent:
             teams = " vs ".join([api.format_fixture_untuk_prompt(f) for f in selesai[:1]])
             image_url = gen.generate_image_url(f"rekap hasil {teams}", style="football")
             self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                                judul=konten.get("youtube_title", "Rekap Hasil Pertandingan"))
+                                judul=konten.get("youtube_title", "Rekap Hasil Pertandingan"),
+                                tipe_aff="rekap")
 
         return hasil
 
@@ -162,7 +166,8 @@ class FootballContentAgent:
         if ke_facebook and konten.get("facebook_caption"):
             image_url = gen.generate_image_url(f"klasemen {nama_liga}", style="klasemen")
             self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                                judul=konten.get("youtube_title", f"Klasemen {nama_liga}"))
+                                judul=konten.get("youtube_title", f"Klasemen {nama_liga}"),
+                                tipe_aff="klasemen")
 
         return hasil
 
@@ -185,7 +190,8 @@ class FootballContentAgent:
         if not image_url:
             image_url = gen.generate_image_url(berita[0]["title"], style="transfer")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                            judul=konten.get("youtube_title", "Berita Transfer Terkini"))
+                            judul=konten.get("youtube_title", "Berita Transfer Terkini"),
+                            tipe_aff="transfer")
         return hasil
 
     def posting_polling(self) -> dict:
@@ -201,7 +207,7 @@ class FootballContentAgent:
         caption = gen.buat_polling_interaktif(fixture_teks)
         hasil = {"caption": caption, "platform": []}
         image_url = gen.generate_image_url(fixture_teks[0] if fixture_teks else "football poll", style="football")
-        self._post_facebook(caption, hasil, image_url, judul="Prediksi Kamu Siapa?")
+        self._post_facebook(caption, hasil, image_url, judul="Prediksi Kamu Siapa?", tipe_aff="polling")
         return hasil
 
     def posting_topik_viral(self) -> dict:
@@ -219,7 +225,8 @@ class FootballContentAgent:
         if not image_url:
             image_url = gen.generate_image_url(berita[0]["title"], style="viral")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                            judul=konten.get("youtube_title", "Topik Viral Sepak Bola"))
+                            judul=konten.get("youtube_title", "Topik Viral Sepak Bola"),
+                            tipe_aff="viral")
         return hasil
 
     def posting_pengingat_pertandingan(self) -> dict:
@@ -237,7 +244,7 @@ class FootballContentAgent:
         image_url = gen.generate_image_url(
             fixture_teks[0] if fixture_teks else "football match tonight", style="hype"
         )
-        self._post_facebook(caption, hasil, image_url, judul="Pertandingan Malam Ini!")
+        self._post_facebook(caption, hasil, image_url, judul="Pertandingan Malam Ini!", tipe_aff="pengingat")
         return hasil
 
     def upload_video_folder_otomatis(self, folder: str = "videos") -> dict:
@@ -279,7 +286,7 @@ class FootballContentAgent:
         caption = gen.buat_statistik_malam(fixture_teks)
         hasil = {"caption": caption, "platform": []}
         image_url = gen.generate_image_url("football match statistics highlights", style="statistik")
-        self._post_facebook(caption, hasil, image_url, judul="Statistik Pertandingan Semalam")
+        self._post_facebook(caption, hasil, image_url, judul="Statistik Pertandingan Semalam", tipe_aff="statistik")
         return hasil
 
     # ------------------------------------------------------------------ #
@@ -376,11 +383,16 @@ class FootballContentAgent:
     #  HELPER
     # ------------------------------------------------------------------ #
 
-    def _post_facebook(self, caption: str, hasil: dict, image_url: str = "", judul: str = ""):
+    def _post_facebook(self, caption: str, hasil: dict, image_url: str = "",
+                       judul: str = "", tipe_aff: str = "default"):
         """Helper: posting ke Facebook + Threads secara bersamaan.
+        Otomatis menambahkan link affiliate Shopee ke caption.
         Urutan fallback Facebook: video lokal → foto via URL → teks.
         Threads: foto via URL (Pollinations) → teks.
         """
+        # Tambahkan link affiliate Shopee ke caption
+        caption = aff.tambah_affiliate_ke_caption(caption, tipe_aff)
+
         # ── Facebook ──────────────────────────────────────────────────────
         try:
             if image_url:
