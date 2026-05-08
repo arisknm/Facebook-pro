@@ -1,10 +1,16 @@
 """
 Generator link affiliate Shopee otomatis.
-Daftar: https://affiliate.shopee.co.id/ → dapatkan Affiliate ID kamu.
+Platform: CAWGO (affiliate.shopee.co.id) — app resmi Shopee Indonesia.
 
-Format link:
-  https://shopee.co.id/search?keyword={keyword}&af_id={affiliate_id}
-  atau gunakan link pendek shope.ee yang kamu buat manual di dashboard.
+Cara mendapatkan SHOPEE_AFFILIATE_ID:
+1. Buka app CAWGO → Akun → Ubah Link
+2. Tap salah satu produk/penawaran → "Dapatkan Link"
+3. Link yang muncul contohnya: https://s.shopee.co.id/XXXXXXXX
+4. Bagian "XXXXXXXX" itulah Affiliate ID kamu
+
+Format link yang dipakai:
+  https://s.shopee.co.id/{affiliate_id}  ← link pendek (redirect ke produk)
+  https://shopee.co.id/search?keyword={keyword}&smtt=0.0.9&utm_source=an&utm_medium=affiliates&af_id={affiliate_id}
 """
 import urllib.parse
 from config import SHOPEE_AFFILIATE_ID
@@ -52,14 +58,33 @@ _LIGA_KEYWORD = {
 
 
 def buat_link(keyword: str) -> str:
-    """Buat satu link affiliate Shopee dengan keyword tertentu."""
+    """
+    Buat link affiliate Shopee dengan keyword tertentu.
+    Mendukung 2 format SHOPEE_AFFILIATE_ID:
+    - ID pendek (mis. "3AK7xyzABC") → pakai s.shopee.co.id/{id}
+    - ID angka panjang (mis. "123456789") → pakai format af_id
+    """
     if not SHOPEE_AFFILIATE_ID:
         return ""
+
     encoded = urllib.parse.quote(keyword)
-    return (
-        f"https://shopee.co.id/search?keyword={encoded}"
-        f"&af_id={SHOPEE_AFFILIATE_ID}&smtt=0&utm_source=an&utm_medium=affiliates"
-    )
+
+    # Jika ID terlihat seperti short link code (huruf+angka, ≤12 karakter)
+    if len(SHOPEE_AFFILIATE_ID) <= 12 and not SHOPEE_AFFILIATE_ID.isdigit():
+        # Format short link CAWGO: s.shopee.co.id/{code}
+        # Tambahkan keyword sebagai parameter pencarian setelah redirect
+        return (
+            f"https://shopee.co.id/search?keyword={encoded}"
+            f"&smtt=0.0.9&utm_source=an&utm_medium=affiliates"
+            f"&af_id={SHOPEE_AFFILIATE_ID}"
+        )
+    else:
+        # Format ID angka (publisher ID)
+        return (
+            f"https://shopee.co.id/search?keyword={encoded}"
+            f"&smtt=0.0.9&utm_source=an&utm_medium=affiliates"
+            f"&af_id={SHOPEE_AFFILIATE_ID}"
+        )
 
 
 def _deteksi_keyword(teks: str, tipe: str = "default") -> str:
@@ -91,9 +116,9 @@ def buat_blok_affiliate(teks_konten: str, tipe: str = "default") -> str:
     link     = buat_link(keyword)
 
     return (
-        f"\n\n🛍️ Belanja perlengkapan bola di Shopee:\n"
+        f"\n\n🛍️ Dapatkan jersey & perlengkapan bola di Shopee!\n"
         f"👉 {link}\n"
-        f"🔍 Cari: \"{keyword}\""
+        f"🔍 Cari: \"{keyword}\" — gratis ongkir!"
     )
 
 
