@@ -15,16 +15,16 @@ import content_generator as gen
 import facebook_publisher as fb
 import youtube_publisher as yt
 import news_api as news
+import video_generator as vg
 
 log = logging.getLogger(__name__)
 
 
 def _fixture_selesai(f: dict) -> bool:
-    """Cek apakah fixture dari TheSportsDB sudah selesai."""
-    status = (f.get("strStatus") or "").lower()
-    skor_h = f.get("intHomeScore")
-    skor_a = f.get("intAwayScore")
-    return status in ("match finished", "ft", "aot", "ap") or (
+    status = (f.get("strStatus") or f.get("fixture", {}).get("status", {}).get("short", "")).lower()
+    skor_h = f.get("intHomeScore") or f.get("goals", {}).get("home")
+    skor_a = f.get("intAwayScore") or f.get("goals", {}).get("away")
+    return status in ("match finished", "ft", "aet", "pen", "aot", "ap") or (
         skor_h is not None and skor_a is not None
     )
 
@@ -46,13 +46,31 @@ class FootballContentAgent:
         ke_youtube: bool = False,
         simpan_lokal: bool = True,
     ) -> dict:
-        """Ambil jadwal hari ini → buat konten → posting ke platform."""
+        """Ambil jadwal hari ini → buat konten → posting ke platform.
+        Jika tidak ada pertandingan hari ini, cari mendatang dan posting hype countdown.
+        """
         log.info("Mengambil data pertandingan hari ini...")
         fixtures = api.get_fixtures_hari_ini()
 
         if not fixtures:
-            log.warning("Tidak ada pertandingan hari ini.")
-            return {"status": "tidak_ada_pertandingan"}
+            log.warning("Tidak ada pertandingan hari ini, mencari pertandingan mendatang...")
+            mendatang = api.get_fixtures_mendatang(max_hari=7)
+            if not mendatang:
+                return {"status": "tidak_ada_pertandingan"}
+            hari_lagi, fixtures_depan = mendatang[0]
+            label = "besok" if hari_lagi == 1 else f"{hari_lagi} hari lagi"
+            log.info(f"Ditemukan pertandingan {label}, membuat konten hype countdown...")
+            fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures_depan]
+            konten = gen.buat_hype_mendatang(fixture_teks, hari_lagi)
+            hasil = {"konten": konten, "platform": [], "countdown": f"H-{hari_lagi}"}
+            if simpan_lokal:
+                self._simpan_konten(f"hype_h{hari_lagi}", konten)
+            if ke_facebook and konten.get("facebook_caption"):
+                teams = api.format_fixture_untuk_prompt(fixtures_depan[0])
+                image_url = gen.generate_image_url(f"H-{hari_lagi} {teams}", style="hype")
+                self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                                    judul=konten.get("youtube_title", f"H-{hari_lagi} Big Match!"))
+            return hasil
 
         fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
         log.info(f"Ditemukan {len(fixtures)} pertandingan. Membuat konten...")
@@ -64,7 +82,10 @@ class FootballContentAgent:
             self._simpan_konten("preview", konten)
 
         if ke_facebook and konten.get("facebook_caption"):
-            self._post_facebook(konten["facebook_caption"], hasil)
+            teams = " vs ".join([api.format_fixture_untuk_prompt(f) for f in fixtures[:1]])
+            image_url = gen.generate_image_url(teams, style="football")
+            self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                                judul=konten.get("youtube_title", "Preview Pertandingan Hari Ini"))
 
         if ke_youtube and konten.get("youtube_title"):
             log.info("YouTube: diperlukan file video. Gunakan upload_video_ke_youtube().")
@@ -94,7 +115,10 @@ class FootballContentAgent:
             self._simpan_konten("rekap", konten)
 
         if ke_facebook and konten.get("facebook_caption"):
-            self._post_facebook(konten["facebook_caption"], hasil)
+            teams = " vs ".join([api.format_fixture_untuk_prompt(f) for f in selesai[:1]])
+            image_url = gen.generate_image_url(f"rekap hasil {teams}", style="football")
+            self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                                judul=konten.get("youtube_title", "Rekap Hasil Pertandingan"))
 
         return hasil
 
@@ -114,17 +138,16 @@ class FootballContentAgent:
         if not standings:
             return {"status": "gagal_ambil_klasemen"}
 
-        # Format teks klasemen (TheSportsDB: strTeam, intPoints, intRank)
         baris = []
         for i, tim in enumerate(standings[:5], 1):
-            nama = tim.get("strTeam") or tim.get("name", "")
-            poin = tim.get("intPoints") or tim.get("points", 0)
+            nama = tim.get("team", {}).get("name") or tim.get("strTeam", "")
+            poin = tim.get("points") or tim.get("intPoints", 0)
             baris.append(f"{i}. {nama} — {poin} poin")
         baris.append("...")
         for tim in standings[-3:]:
-            nama = tim.get("strTeam") or tim.get("name", "")
-            rank = tim.get("intRank") or tim.get("rank", "?")
-            poin = tim.get("intPoints") or tim.get("points", 0)
+            nama = tim.get("team", {}).get("name") or tim.get("strTeam", "")
+            rank = tim.get("rank") or tim.get("intRank", "?")
+            poin = tim.get("points") or tim.get("intPoints", 0)
             baris.append(f"{rank}. {nama} — {poin} poin ⚠️")
 
         standings_teks = "\n".join(baris)
@@ -135,7 +158,9 @@ class FootballContentAgent:
             self._simpan_konten(f"klasemen_{nama_liga.lower().replace(' ', '_')}", konten)
 
         if ke_facebook and konten.get("facebook_caption"):
-            self._post_facebook(konten["facebook_caption"], hasil)
+            image_url = gen.generate_image_url(f"klasemen {nama_liga}", style="klasemen")
+            self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                                judul=konten.get("youtube_title", f"Klasemen {nama_liga}"))
 
         return hasil
 
@@ -154,20 +179,27 @@ class FootballContentAgent:
         konten = gen.buat_konten_berita_transfer(berita_teks)
         self._simpan_konten("transfer_pagi", konten)
         hasil = {"konten": konten, "platform": []}
-        self._post_facebook(konten["facebook_caption"], hasil)
+        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
+        if not image_url:
+            image_url = gen.generate_image_url(berita[0]["title"], style="transfer")
+        self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                            judul=konten.get("youtube_title", "Berita Transfer Terkini"))
         return hasil
 
     def posting_polling(self) -> dict:
-        """12:00 — Polling interaktif pertandingan malam ini."""
+        """12:00 — Polling interaktif pertandingan malam ini atau mendatang."""
         log.info("Job 12:00: polling pertandingan malam")
         fixtures = api.get_fixtures_hari_ini()
         if not fixtures:
-            log.warning("Tidak ada pertandingan hari ini untuk polling.")
-            return {"status": "tidak_ada_pertandingan"}
+            mendatang = api.get_fixtures_mendatang(max_hari=3)
+            if not mendatang:
+                return {"status": "tidak_ada_pertandingan"}
+            _, fixtures = mendatang[0]
         fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
         caption = gen.buat_polling_interaktif(fixture_teks)
         hasil = {"caption": caption, "platform": []}
-        self._post_facebook(caption, hasil)
+        image_url = gen.generate_image_url(fixture_teks[0] if fixture_teks else "football poll", style="football")
+        self._post_facebook(caption, hasil, image_url, judul="Prediksi Kamu Siapa?")
         return hasil
 
     def posting_topik_viral(self) -> dict:
@@ -181,20 +213,29 @@ class FootballContentAgent:
         konten = gen.buat_konten_topik_viral(berita_teks)
         self._simpan_konten("viral_sore", konten)
         hasil = {"konten": konten, "platform": []}
-        self._post_facebook(konten["facebook_caption"], hasil)
+        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
+        if not image_url:
+            image_url = gen.generate_image_url(berita[0]["title"], style="viral")
+        self._post_facebook(konten["facebook_caption"], hasil, image_url,
+                            judul=konten.get("youtube_title", "Topik Viral Sepak Bola"))
         return hasil
 
     def posting_pengingat_pertandingan(self) -> dict:
-        """19:00 — Pengingat pertandingan malam ini."""
+        """19:00 — Pengingat pertandingan malam ini atau hype mendatang."""
         log.info("Job 19:00: pengingat pertandingan")
         fixtures = api.get_fixtures_hari_ini()
         if not fixtures:
-            log.warning("Tidak ada pertandingan malam ini.")
-            return {"status": "tidak_ada_pertandingan"}
+            mendatang = api.get_fixtures_mendatang(max_hari=3)
+            if not mendatang:
+                return {"status": "tidak_ada_pertandingan"}
+            _, fixtures = mendatang[0]
         fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures]
         caption = gen.buat_pengingat_pertandingan(fixture_teks)
         hasil = {"caption": caption, "platform": []}
-        self._post_facebook(caption, hasil)
+        image_url = gen.generate_image_url(
+            fixture_teks[0] if fixture_teks else "football match tonight", style="hype"
+        )
+        self._post_facebook(caption, hasil, image_url, judul="Pertandingan Malam Ini!")
         return hasil
 
     def upload_video_folder_otomatis(self, folder: str = "videos") -> dict:
@@ -235,7 +276,8 @@ class FootballContentAgent:
         fixture_teks = [api.format_fixture_untuk_prompt(f) for f in selesai]
         caption = gen.buat_statistik_malam(fixture_teks)
         hasil = {"caption": caption, "platform": []}
-        self._post_facebook(caption, hasil)
+        image_url = gen.generate_image_url("football match statistics highlights", style="statistik")
+        self._post_facebook(caption, hasil, image_url, judul="Statistik Pertandingan Semalam")
         return hasil
 
     # ------------------------------------------------------------------ #
@@ -332,15 +374,43 @@ class FootballContentAgent:
     #  HELPER
     # ------------------------------------------------------------------ #
 
-    def _post_facebook(self, caption: str, hasil: dict):
-        """Helper: posting teks ke Facebook dan catat hasilnya."""
+    def _post_facebook(self, caption: str, hasil: dict, image_url: str = "", judul: str = ""):
+        """Helper: posting ke Facebook.
+        Urutan fallback: video lokal → foto via URL → teks.
+        """
         try:
-            res = fb.post_teks(caption)
-            hasil["platform"].append({"facebook": res})
-            log.info(f"Facebook: diposting — ID {res.get('id')}")
+            if image_url:
+                video_path = vg.buat_video(judul or "Info Bola", caption, image_url)
+                if video_path:
+                    try:
+                        res = fb.upload_video_file(caption, video_path, judul)
+                        log.info(f"Facebook: diposting sebagai VIDEO — ID {res.get('id')}")
+                        hasil["platform"].append({"facebook": res, "tipe": "video"})
+                        return
+                    except Exception as ev:
+                        log.warning(f"Upload video gagal ({ev}), fallback ke foto")
+                    finally:
+                        try:
+                            os.unlink(video_path)
+                        except Exception:
+                            pass
+
+                res = fb.post_dengan_gambar(caption, image_url)
+                log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
+                hasil["platform"].append({"facebook": res, "tipe": "foto"})
+            else:
+                res = fb.post_teks(caption)
+                log.info(f"Facebook: diposting teks — ID {res.get('id')}")
+                hasil["platform"].append({"facebook": res, "tipe": "teks"})
         except Exception as e:
             log.error(f"Facebook gagal: {e}")
-            hasil["platform"].append({"facebook_error": str(e)})
+            if image_url:
+                try:
+                    res = fb.post_teks(caption)
+                    hasil["platform"].append({"facebook": res, "tipe": "teks_fallback"})
+                    log.info("Facebook: fallback ke teks berhasil")
+                except Exception as e2:
+                    hasil["platform"].append({"facebook_error": str(e2)})
 
     def _simpan_konten(self, nama: str, konten: dict):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")

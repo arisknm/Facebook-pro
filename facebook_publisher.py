@@ -1,6 +1,7 @@
 """
 Publisher konten ke Facebook Page via Graph API.
 """
+import os
 import requests
 from config import FACEBOOK_PAGE_ID, FACEBOOK_ACCESS_TOKEN
 
@@ -93,7 +94,7 @@ def post_dengan_gambar(caption: str, url_gambar: str) -> dict:
 
 
 def post_dengan_video(caption: str, url_video: str, judul: str = "") -> dict:
-    """Upload video ke Facebook Page."""
+    """Upload video ke Facebook Page via URL publik."""
     _check_config()
     data = {
         "description": caption,
@@ -107,6 +108,28 @@ def post_dengan_video(caption: str, url_video: str, judul: str = "") -> dict:
         data=data,
         timeout=60,
     )
+    if not resp.ok:
+        _raise_facebook_error(resp)
+    return resp.json()
+
+
+def upload_video_file(caption: str, file_path: str, judul: str = "") -> dict:
+    """Upload file video lokal (MP4) ke Facebook Page via multipart."""
+    _check_config()
+    data = {
+        "description": caption,
+        "access_token": FACEBOOK_ACCESS_TOKEN,
+    }
+    if judul:
+        data["title"] = judul
+    with open(file_path, "rb") as f:
+        files = {"source": (os.path.basename(file_path), f, "video/mp4")}
+        resp = requests.post(
+            f"{GRAPH_BASE}/{FACEBOOK_PAGE_ID}/videos",
+            data=data,
+            files=files,
+            timeout=300,
+        )
     if not resp.ok:
         _raise_facebook_error(resp)
     return resp.json()
