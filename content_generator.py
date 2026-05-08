@@ -153,6 +153,95 @@ Pisahkan setiap bagian dengan === BAGIAN ===
     return _parse_output(_chat(prompt))
 
 
+# Label topik pundit yang tampil di video
+LABEL_TOPIK = {
+    "timnas"            : "🇮🇩 Timnas Indonesia",
+    "liga1"             : "🏆 BRI Liga 1",
+    "persija"           : "🔴 Persija Jakarta",
+    "persib"            : "💙 Persib Bandung",
+    "manchester_united" : "👹 Manchester United",
+    "liga_champion"     : "⭐ UEFA Champions League",
+}
+
+
+def buat_analisis_pundit(berita_teks: str, topik: str = "timnas") -> dict:
+    """Buat konten analisis gaya pundit TV untuk topik tertentu."""
+    label = LABEL_TOPIK.get(topik, "⚽ Sepak Bola")
+    prompt = f"""
+Kamu adalah pundit/analis sepak bola profesional Indonesia yang sering tampil di TV.
+Topik hari ini: {label}
+
+Berita terkini:
+{berita_teks}
+
+Buat konten analisis pundit yang tajam, berani berpendapat, dan menghibur.
+
+Format output:
+1. CAPTION FACEBOOK
+   - Gaya pundit TV: tegas, lugas, ada opini kuat
+   - Buka dengan kutipan/pernyataan mengejutkan
+   - Analisis 2-3 poin utama
+   - Tutup dengan pertanyaan provokatif ke pembaca
+   - 220-300 kata, emoji, hashtag #{topik.replace("_", "")} #infobola
+
+2. KUTIPAN PUNDIT (untuk teks di video)
+   - 1 kalimat tajam dan berkesan, maks 120 karakter
+   - Gaya komentar pundit TV yang to-the-point
+   - Contoh: "Ronaldo sudah habis di level Eropa — itu fakta, bukan opini!"
+
+3. JUDUL VIDEO (maks 65 karakter, clickbait tapi faktual)
+
+4. POIN ANALISIS (3 poin, masing-masing maks 60 karakter)
+   - Format: poin singkat dan padat
+   - Akan ditampilkan sebagai bullet point di video
+
+Pisahkan setiap bagian dengan === BAGIAN ===
+"""
+    raw = _chat(prompt)
+    hasil = _parse_output_pundit(raw)
+    return hasil
+
+
+def _parse_output_pundit(teks: str) -> dict:
+    """Parse output pundit ke dict berstruktur."""
+    import re
+
+    hasil = {
+        "facebook_caption": "",
+        "kutipan_pundit"  : "",
+        "judul_video"     : "",
+        "poin_analisis"   : [],
+    }
+
+    # Split bagian
+    if "=== BAGIAN ===" in teks:
+        bagian = [b.strip() for b in teks.split("=== BAGIAN ===") if b.strip()]
+    else:
+        bagian = re.split(r"===\s*[^=]+\s*===", teks)
+        bagian = [b.strip() for b in bagian if b.strip()]
+
+    keys = ["facebook_caption", "kutipan_pundit", "judul_video", "poin_analisis"]
+    for i, key in enumerate(keys):
+        if i >= len(bagian):
+            break
+        konten = bagian[i].strip()
+        lines  = [l for l in konten.split("\n")
+                  if not re.match(r"^(===|CAPTION|KUTIPAN|JUDUL|POIN|\*\*[0-9])", l.strip().upper())]
+        konten = "\n".join(lines).strip()
+
+        if key == "poin_analisis":
+            poin = []
+            for line in konten.split("\n"):
+                line = re.sub(r"^[-•*\d.]+\s*", "", line).strip()
+                if line and len(line) > 5:
+                    poin.append(line[:65])
+            hasil[key] = poin[:3]
+        else:
+            hasil[key] = konten
+
+    return hasil
+
+
 def generate_image_url(topik: str, style: str = "football") -> str:
     """Generate URL gambar Full HD dari Pollinations.ai (gratis, tanpa API key).
     Resolusi 1920x1080, model flux, enhance=true untuk kualitas maksimal.
