@@ -193,8 +193,18 @@ def _buat_musik_latar(durasi: float, sr: int = SAMPLE_RATE) -> np.ndarray:
 #  VISUAL HELPERS
 # --------------------------------------------------------------------------- #
 
-def _download_image(url: str, timeout: int = 90) -> str:
-    """Download gambar dari URL ke file sementara, return path."""
+def _download_image(url: str, timeout: int = 120) -> str:
+    """Download gambar dari URL ke file sementara, return path.
+    Untuk video kita minta resolusi 1920x1920 agar crop ke 1080x1080 tetap tajam.
+    """
+    # Tingkatkan resolusi URL Pollinations.ai jika itu sumbernya
+    if "image.pollinations.ai" in url:
+        import re
+        url = re.sub(r'width=\d+', 'width=1920', url)
+        url = re.sub(r'height=\d+', 'height=1920', url)
+        if "enhance=" not in url:
+            url += "&enhance=true"
+
     resp = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
     resp.raise_for_status()
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")

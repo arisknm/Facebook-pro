@@ -153,6 +153,61 @@ Pisahkan setiap bagian dengan === BAGIAN ===
     return _parse_output(_chat(prompt))
 
 
+def generate_image_url(topik: str, style: str = "football") -> str:
+    """Generate URL gambar Full HD dari Pollinations.ai (gratis, tanpa API key).
+    Resolusi 1920x1080, model flux, enhance=true untuk kualitas maksimal.
+    """
+    import urllib.parse
+    styles = {
+        "football"  : "professional football soccer photography, dynamic action shot, packed stadium, dramatic cinematic lighting, ultra sharp focus, 8K hyperrealistic",
+        "transfer"  : "football player transfer signing ceremony, press conference, new jersey reveal, professional photography, sharp focus, cinematic lighting",
+        "viral"     : "epic football viral moment, massive fans celebration explosion, dramatic stadium aerial view, ultra realistic cinematic",
+        "klasemen"  : "football league championship golden trophy, confetti rain, stadium crowd euphoria, ultra HD photorealistic",
+        "hype"      : "football match epic night countdown, stadium floodlights blazing, electric crowd atmosphere, dramatic wide angle ultra sharp",
+        "statistik" : "football match analytics dashboard, neon data visualization, dark modern background, professional sports infographic ultra HD",
+    }
+    style_text = styles.get(style, styles["football"])
+    prompt = (
+        f"{topik}, {style_text}, "
+        f"4K ultra HD, photorealistic, award winning sports photography, "
+        f"no blur, tack sharp, vibrant saturated colors, professional studio quality"
+    )
+    encoded = urllib.parse.quote(prompt)
+    seed    = abs(hash(topik)) % 99999
+    return (
+        f"https://image.pollinations.ai/prompt/{encoded}"
+        f"?width=1920&height=1080&model=flux&enhance=true&nologo=true&seed={seed}"
+    )
+
+
+def buat_hype_mendatang(fixture_teks: list[str], hari_lagi: int) -> dict:
+    """Buat konten hype countdown pertandingan mendatang (H-N)."""
+    daftar = "\n".join(f"- {f}" for f in fixture_teks)
+    label  = f"H-{hari_lagi}" if hari_lagi > 1 else "BESOK"
+    prompt = f"""
+Buat konten hype sepak bola untuk media sosial. Pertandingan besar akan berlangsung {label}!
+
+Pertandingan mendatang:
+{daftar}
+
+Instruksi:
+- Buka dengan kalimat hype countdown "{label} LAGI!" yang semangat
+- Highlight 1-2 pertandingan paling menarik
+- Bangun antisipasi dan excitement para fans
+- Ajak followers untuk save postingan dan pantau terus
+- Panjang caption Facebook: 200-280 kata, emoji, hashtag
+
+Format output:
+1. CAPTION FACEBOOK
+2. DESKRIPSI YOUTUBE (100-150 kata, SEO)
+3. JUDUL YOUTUBE (maks 70 karakter, ada "{label}")
+4. TAGS YOUTUBE (15 tag)
+
+Pisahkan setiap bagian dengan === BAGIAN ===
+"""
+    return _parse_output(_chat(prompt))
+
+
 def buat_polling_interaktif(fixture_teks: list[str]) -> str:
     """Buat caption polling/kuis untuk pertandingan malam ini (hanya Facebook)."""
     daftar = "\n".join(f"- {f}" for f in fixture_teks)
