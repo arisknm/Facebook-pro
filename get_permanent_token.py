@@ -11,8 +11,8 @@ import sys
 import os
 import requests
 
-APP_ID     = "1652729072659497"
-APP_SECRET = "1f6f74143a830766b20f35d43d48289b"
+APP_ID     = "1452223299431141"
+APP_SECRET = "0886f0c492a1c02cfce06f899d4c98b7"
 PAGE_ID    = "1164718290049590"
 GRAPH      = "https://graph.facebook.com/v19.0"
 
