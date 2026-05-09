@@ -71,9 +71,13 @@ def main():
 
     # Daftar secrets yang akan diupload (ambil dari .env)
     secret_keys = [
+        "GROQ_API_KEY",
         "GEMINI_API_KEY",
         "FACEBOOK_PAGE_ID",
         "FACEBOOK_ACCESS_TOKEN",
+        "THREADS_USER_ID",
+        "THREADS_ACCESS_TOKEN",
+        "SHOPEE_AFFILIATE_ID",
         "FOOTBALL_API_KEY",
         "NEWS_API_KEY",
     ]
