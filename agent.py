@@ -186,9 +186,7 @@ class FootballContentAgent:
         konten = gen.buat_konten_berita_transfer(berita_teks)
         self._simpan_konten("transfer_pagi", konten)
         hasil = {"konten": konten, "platform": []}
-        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
-        if not image_url:
-            image_url = gen.generate_image_url(berita[0]["title"], style="transfer")
+        image_url = gen.generate_image_url(berita[0]["title"], style="transfer")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
                             judul=konten.get("youtube_title", "Berita Transfer Terkini"),
                             tipe_aff="transfer")
@@ -221,9 +219,7 @@ class FootballContentAgent:
         konten = gen.buat_konten_topik_viral(berita_teks)
         self._simpan_konten("viral_sore", konten)
         hasil = {"konten": konten, "platform": []}
-        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
-        if not image_url:
-            image_url = gen.generate_image_url(berita[0]["title"], style="viral")
+        image_url = gen.generate_image_url(berita[0]["title"], style="viral")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
                             judul=konten.get("youtube_title", "Topik Viral Sepak Bola"),
                             tipe_aff="viral")
@@ -323,17 +319,15 @@ class FootballContentAgent:
         poin_list = konten.get("poin_video", [])
         caption   = konten.get("facebook_caption", "")
 
-        # Gambar background (portrait untuk video vertikal)
-        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
-        if not image_url:
-            style_map = {
-                "timnas": "football", "liga1": "football",
-                "persija": "football", "persib": "football",
-                "manchester_united": "football", "liga_champion": "klasemen",
-            }
-            image_url = gen.generate_image_url(
-                f"{label} football", style=style_map.get(topik, "football")
-            )
+        # Gambar background (portrait untuk video vertikal) — selalu 4K AI, bukan RSS thumbnail
+        style_map = {
+            "timnas": "football", "liga1": "football",
+            "persija": "football", "persib": "football",
+            "manchester_united": "football", "liga_champion": "klasemen",
+        }
+        image_url = gen.generate_image_url(
+            f"{label} football", style=style_map.get(topik, "football")
+        )
 
         # Buat video vertikal 9:16
         video_path = vg.buat_video_berita(
