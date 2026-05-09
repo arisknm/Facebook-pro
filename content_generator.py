@@ -3,6 +3,7 @@ Generator konten bola.
 Primary: Groq API (llama-3.3-70b-versatile) — 14,400 req/hari gratis, lebih cepat.
 Fallback: Google Gemini API (gemini-2.0-flash-lite) — 1,500 req/hari gratis.
 """
+import re
 import logging
 import requests
 from config import GEMINI_API_KEY, GROQ_API_KEY
@@ -524,36 +525,67 @@ Tandai jeda dengan [PAUSE] dan efek visual dengan [VISUAL: deskripsi].
 # --------------------------------------------------------------------------- #
 
 def _parse_output(teks: str) -> dict:
-    """Parsing output Gemini ke dict berstruktur."""
-    bagian = [b.strip() for b in teks.split("=== BAGIAN ===")]
-    bagian = [b for b in bagian if b]
-
+    """Parsing output AI ke dict berstruktur. Handle dua format pemisah:
+    - '=== BAGIAN ===' (format lama/Gemini)
+    - '=== CAPTION FACEBOOK ===' / '=== DESKRIPSI YOUTUBE ===' (format Groq/llama)
+    """
     hasil = {
-        "facebook_caption"  : "",
+        "facebook_caption"   : "",
         "youtube_description": "",
-        "youtube_title"     : "",
-        "youtube_tags"      : [],
+        "youtube_title"      : "",
+        "youtube_tags"       : [],
     }
 
-    keys = ["facebook_caption", "youtube_description", "youtube_title", "youtube_tags"]
-    for i, key in enumerate(keys):
-        if i < len(bagian):
-            lines = bagian[i].split("\n")
-            konten_lines = []
-            for line in lines:
-                stripped = line.strip()
-                if stripped and not (
-                    len(stripped) > 2
-                    and stripped[0].isdigit()
-                    and stripped[1] in (".", ")")
-                    and stripped[2:].strip().isupper()
-                ):
-                    konten_lines.append(line)
-            konten = "\n".join(konten_lines).strip()
+    # Coba split berdasarkan format Groq: === ... ===
+    _SEP = re.compile(r"===\s*([^=]+?)\s*===")
+    header_matches = list(_SEP.finditer(teks))
 
-            if key == "youtube_tags":
-                hasil[key] = [t.strip() for t in konten.split(",") if t.strip()]
-            else:
-                hasil[key] = konten
+    if header_matches:
+        # Format Groq: header bernama, ambil isi antar header
+        _KEY_MAP = {
+            "caption facebook": "facebook_caption",
+            "facebook": "facebook_caption",
+            "deskripsi youtube": "youtube_description",
+            "youtube description": "youtube_description",
+            "youtube": "youtube_description",
+            "judul video": "youtube_title",
+            "judul": "youtube_title",
+            "title": "youtube_title",
+            "tags": "youtube_tags",
+            "hashtag": "youtube_tags",
+        }
+        for idx, match in enumerate(header_matches):
+            header_key = match.group(1).strip().lower()
+            start = match.end()
+            end = header_matches[idx + 1].start() if idx + 1 < len(header_matches) else len(teks)
+            isi = teks[start:end].strip()
+            # Buang baris yang hanya berisi === ... ===
+            isi_bersih = "\n".join(
+                ln for ln in isi.splitlines()
+                if not re.fullmatch(r"\s*===.*===\s*", ln)
+            ).strip()
+            for kata, field in _KEY_MAP.items():
+                if kata in header_key:
+                    if field == "youtube_tags":
+                        hasil[field] = [t.strip() for t in re.split(r"[,\n]", isi_bersih) if t.strip()]
+                    else:
+                        hasil[field] = isi_bersih
+                    break
+    else:
+        # Format lama: pisah dengan '=== BAGIAN ==='
+        bagian = [b.strip() for b in teks.split("=== BAGIAN ===") if b.strip()]
+        keys = ["facebook_caption", "youtube_description", "youtube_title", "youtube_tags"]
+        for i, key in enumerate(keys):
+            if i < len(bagian):
+                isi = bagian[i].strip()
+                if key == "youtube_tags":
+                    hasil[key] = [t.strip() for t in isi.split(",") if t.strip()]
+                else:
+                    hasil[key] = isi
+
+    # Pastikan facebook_caption tidak kosong — fallback ke teks mentah
+    if not hasil["facebook_caption"]:
+        # Hapus semua header === ... === dari teks mentah lalu pakai sebagai caption
+        hasil["facebook_caption"] = _SEP.sub("", teks).strip()
 
     return hasil
