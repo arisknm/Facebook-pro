@@ -197,13 +197,16 @@ def _download_image(url: str, timeout: int = 120) -> str:
     """Download gambar dari URL ke file sementara, return path.
     Untuk video kita minta resolusi 1920x1920 agar crop ke 1080x1080 tetap tajam.
     """
-    # Tingkatkan resolusi URL Pollinations.ai jika itu sumbernya
+    # Paksa resolusi 4K untuk Pollinations.ai
     if "image.pollinations.ai" in url:
         import re
-        url = re.sub(r'width=\d+', 'width=1920', url)
-        url = re.sub(r'height=\d+', 'height=1920', url)
+        url = re.sub(r'width=\d+',  'width=2048',  url)
+        url = re.sub(r'height=\d+', 'height=2048', url)
         if "enhance=" not in url:
             url += "&enhance=true"
+        # Pastikan model flux (kualitas terbaik)
+        if "model=" not in url:
+            url += "&model=flux"
 
     resp = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
     resp.raise_for_status()

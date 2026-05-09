@@ -291,29 +291,29 @@ Pisahkan setiap bagian dengan === BAGIAN ===
 
 
 def generate_image_url(topik: str, style: str = "football") -> str:
-    """Generate URL gambar Full HD dari Pollinations.ai (gratis, tanpa API key).
-    Resolusi 1920x1080, model flux, enhance=true untuk kualitas maksimal.
+    """Generate URL gambar 4K dari Pollinations.ai (gratis, tanpa API key).
+    Resolusi 2048x1152 (4K 16:9), model flux, enhance=true.
     """
     import urllib.parse
     styles = {
-        "football"  : "professional football soccer photography, dynamic action shot, packed stadium, dramatic cinematic lighting, ultra sharp focus, 8K hyperrealistic",
-        "transfer"  : "football player transfer signing ceremony, press conference, new jersey reveal, professional photography, sharp focus, cinematic lighting",
-        "viral"     : "epic football viral moment, massive fans celebration explosion, dramatic stadium aerial view, ultra realistic cinematic",
-        "klasemen"  : "football league championship golden trophy, confetti rain, stadium crowd euphoria, ultra HD photorealistic",
-        "hype"      : "football match epic night countdown, stadium floodlights blazing, electric crowd atmosphere, dramatic wide angle ultra sharp",
-        "statistik" : "football match analytics dashboard, neon data visualization, dark modern background, professional sports infographic ultra HD",
+        "football"  : "professional football soccer action photography, packed stadium roaring crowd, cinematic dramatic lighting, ultra sharp 4K, hyperrealistic, Canon EOS R5",
+        "transfer"  : "football star player transfer signing, media conference, new jersey reveal, flash photography, ultra sharp professional, 4K cinematic",
+        "viral"     : "epic football viral moment, massive stadium crowd explosion, dramatic aerial cinematic shot, ultra realistic 4K",
+        "klasemen"  : "football league championship golden trophy ceremony, confetti rain celebration, ultra HD 4K photorealistic",
+        "hype"      : "football match epic night atmosphere, blazing stadium floodlights, electric crowd wave, dramatic wide angle 4K ultra sharp",
+        "statistik" : "football data analytics neon dashboard, modern dark infographic, professional sports broadcast, 4K ultra HD",
     }
     style_text = styles.get(style, styles["football"])
     prompt = (
         f"{topik}, {style_text}, "
-        f"4K ultra HD, photorealistic, award winning sports photography, "
-        f"no blur, tack sharp, vibrant saturated colors, professional studio quality"
+        f"4K ultra HD resolution, photorealistic, award winning sports photography, "
+        f"tack sharp focus, vivid colors, professional studio lighting"
     )
     encoded = urllib.parse.quote(prompt)
     seed    = abs(hash(topik)) % 99999
     return (
         f"https://image.pollinations.ai/prompt/{encoded}"
-        f"?width=1920&height=1080&model=flux&enhance=true&nologo=true&seed={seed}"
+        f"?width=2048&height=1152&model=flux&enhance=true&nologo=true&seed={seed}"
     )
 
 
