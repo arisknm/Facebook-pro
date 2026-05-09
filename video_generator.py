@@ -246,45 +246,51 @@ def _cari_font(ukuran: int) -> "ImageFont.ImageFont":
 
 
 def _buat_frame(img_pil: "Image.Image", judul: str, poin_list: list[str]) -> "np.ndarray":
-    """Tambahkan teks overlay ke gambar Pillow. Return numpy array RGB."""
+    """Frame video square 1080×1080 — full-bleed foto + gradient bawah + headline besar."""
     frame = img_pil.copy().convert("RGBA")
     w, h  = frame.size
 
+    # Gradient gelap: transparan di atas → hitam pekat di bawah (mulai 45%)
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw    = ImageDraw.Draw(overlay)
+    grad_start = int(h * 0.45)
+    for y in range(grad_start, h):
+        t_g   = (y - grad_start) / (h - grad_start)
+        alpha = int(235 * (t_g ** 1.2))
+        draw.line([(0, y), (w, y)], fill=(0, 0, 0, min(alpha, 235)))
 
-    # Gradient gelap bagian bawah (52%–100%)
-    zona_y = int(h * 0.52)
-    for y in range(zona_y, h):
-        alpha = int(200 * (y - zona_y) / (h - zona_y))
-        draw.line([(0, y), (w, y)], fill=(0, 0, 0, alpha))
+    frame = Image.alpha_composite(frame, overlay)
+    draw2 = ImageDraw.Draw(frame)
 
-    frame  = Image.alpha_composite(frame, overlay)
-    draw2  = ImageDraw.Draw(frame)
+    # Watermark kiri atas
+    draw2.text((30, 30), "INFO BOLA ⚽", font=_cari_font(30), fill=(255, 255, 255, 210))
 
-    # Watermark
-    draw2.text((30, 28), "INFO BOLA ⚽", font=_cari_font(30), fill=(255, 255, 255, 200))
+    # Judul besar uppercase di tengah bawah
+    judul_bersih = re.sub(r'[^\w\s\-|:/!?.,]', '', judul).upper()[:70]
+    judul_wrap   = _wrap(judul_bersih, max_chars=24)
+    font_judul   = _cari_font(58)
+    y_judul      = int(h * 0.55)
 
-    # Judul
-    judul_bersih = re.sub(r'[^\w\s\-|:/!]', '', judul)[:55]
-    judul_wrap   = _wrap(judul_bersih, max_chars=26)
-    font_judul   = _cari_font(54)
-    y_judul      = int(h * 0.57)
-    draw2.text((w // 2 + 2, y_judul + 2), judul_wrap, font=font_judul,
-               fill=(0, 0, 0, 200), anchor="mt", align="center")
+    for dx, dy in [(3, 3), (3, -3), (-2, 2)]:
+        draw2.text((w // 2 + dx, y_judul + dy), judul_wrap, font=font_judul,
+                   fill=(0, 0, 0, 195), anchor="mt", align="center")
     draw2.text((w // 2, y_judul), judul_wrap, font=font_judul,
-               fill=(255, 255, 255, 255), anchor="mt", align="center")
+               fill=(255, 255, 255), anchor="mt", align="center")
 
-    # Poin caption
-    font_poin = _cari_font(32)
-    y_poin    = y_judul + (judul_wrap.count("\n") + 1) * 64 + 18
-    for poin in poin_list:
-        poin_wrap = _wrap("• " + poin, max_chars=38)
+    # Garis merah di bawah judul
+    baris = judul_wrap.count("\n") + 1
+    y_garis = y_judul + baris * 70 + 12
+    draw2.rectangle([(60, y_garis), (w - 60, y_garis + 4)], fill=(220, 30, 30, 220))
+
+    # Satu poin pertama saja (jika ada)
+    if poin_list:
+        font_poin = _cari_font(32)
+        poin_wrap = _wrap(poin_list[0][:70], max_chars=34)
+        y_poin    = y_garis + 20
         draw2.text((w // 2 + 1, y_poin + 1), poin_wrap, font=font_poin,
-                   fill=(0, 0, 0, 180), anchor="mt", align="center")
+                   fill=(0, 0, 0, 170), anchor="mt", align="center")
         draw2.text((w // 2, y_poin), poin_wrap, font=font_poin,
-                   fill=(255, 221, 68, 240), anchor="mt", align="center")
-        y_poin += (poin_wrap.count("\n") + 1) * 40 + 12
+                   fill=(255, 221, 68, 235), anchor="mt", align="center")
 
     return np.array(frame.convert("RGB"))
 
@@ -426,93 +432,75 @@ def _buat_frame_berita(
     img_pil: "Image.Image",
     topik: str,
     headline: str,
-    poin_list: list[str],
-    ticker: str = "",
 ) -> "np.ndarray":
     """
-    Buat satu frame video berita vertikal 1080×1920.
-    Layout:
-      - Top 55%  : gambar background dengan gradient bawah
-      - Middle   : banner topik + headline besar
-      - Bottom   : bullet poin + ticker INFO BOLA
+    Frame video berita full-bleed style siaran olahraga (ref: SCTV Sports / ESPN).
+    Foto memenuhi seluruh frame 1080×1920. Gradient gelap di bawah 42%.
+    Headline besar uppercase + badge topik berwarna + watermark atas.
     """
-    warna  = _WARNA_TOPIK.get(topik, (20, 20, 180))
-    label  = _LABEL_TOPIK.get(topik, "⚽ INFO BOLA")
+    warna = _WARNA_TOPIK.get(topik, (220, 30, 30))
+    label = _LABEL_TOPIK.get(topik, "INFO BOLA")
 
-    canvas = Image.new("RGB", (REEL_W, REEL_H), (10, 10, 20))
+    # Foto full-bleed
+    canvas = img_pil.copy().convert("RGBA").resize((REEL_W, REEL_H), Image.LANCZOS)
 
-    # ── Gambar background di atas (55% tinggi) ────────────────────────────
-    img_h  = int(REEL_H * 0.55)
-    img_bg = img_pil.copy().convert("RGB").resize((REEL_W, img_h), Image.LANCZOS)
-    canvas.paste(img_bg, (0, 0))
+    # Gradient: transparan di atas → hitam pekat di bawah (mulai 42%)
+    overlay = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
+    draw_ov = ImageDraw.Draw(overlay)
+    grad_start = int(REEL_H * 0.42)
+    for y in range(grad_start, REEL_H):
+        t_g   = (y - grad_start) / (REEL_H - grad_start)
+        alpha = int(248 * (t_g ** 1.2))
+        draw_ov.line([(0, y), (REEL_W, y)], fill=(0, 0, 0, min(alpha, 248)))
+    canvas = Image.alpha_composite(canvas, overlay)
 
     draw = ImageDraw.Draw(canvas)
 
-    # Gradient gelap dari 40% ke 60% tinggi (transisi gambar ke konten)
-    grad_start = int(REEL_H * 0.38)
-    grad_end   = int(REEL_H * 0.57)
-    for y in range(grad_start, grad_end):
-        alpha = int(255 * (y - grad_start) / (grad_end - grad_start))
-        draw.line([(0, y), (REEL_W, y)], fill=(10, 10, 20, alpha))
+    # ── Watermark kanan atas ──────────────────────────────────────────────
+    font_wm = _cari_font(32)
+    draw.text((REEL_W - 30, 36), "INFO BOLA ⚽",
+              font=font_wm, fill=(255, 255, 255, 220), anchor="rt")
 
-    # ── Banner topik ──────────────────────────────────────────────────────
-    banner_y = int(REEL_H * 0.53)
-    banner_h = 72
-    draw.rectangle([(0, banner_y), (REEL_W, banner_y + banner_h)], fill=(*warna, 255))
+    # ── Badge topik berwarna (di atas headline) ───────────────────────────
+    font_badge = _cari_font(36)
+    badge_text = f"  {label}  "
+    badge_y    = REEL_H - 395
 
-    font_banner = _cari_font(36)
-    draw.text(
-        (REEL_W // 2, banner_y + banner_h // 2),
-        label, font=font_banner,
-        fill=(255, 255, 255), anchor="mm", align="center",
-    )
+    bbox = draw.textbbox((0, 0), badge_text, font=font_badge)
+    bw   = bbox[2] - bbox[0] + 24
+    bh   = 56
+    bx   = (REEL_W - bw) // 2
 
-    # ── Headline ──────────────────────────────────────────────────────────
-    headline_bersih = re.sub(r'[^\w\s\-|:/!?.,]', '', headline)[:80]
-    headline_wrap   = _wrap(headline_bersih, max_chars=24)
-    font_headline   = _cari_font(58)
-    y_hl            = banner_y + banner_h + 28
+    draw.rectangle([(bx, badge_y), (bx + bw, badge_y + bh)], fill=(*warna, 255))
+    draw.text((REEL_W // 2, badge_y + bh // 2), badge_text,
+              font=font_badge, fill=(255, 255, 255), anchor="mm")
 
-    # Shadow
-    draw.text((REEL_W // 2 + 2, y_hl + 2), headline_wrap,
-              font=font_headline, fill=(0, 0, 0, 180), anchor="mt", align="center")
+    # ── Headline besar uppercase ──────────────────────────────────────────
+    headline_clean = re.sub(r'[^\w\s\-|:/!?.,]', '', headline).upper()[:110]
+    headline_wrap  = _wrap(headline_clean, max_chars=22)
+    font_headline  = _cari_font(66)
+    y_hl           = badge_y + bh + 20
+
+    for dx, dy in [(3, 3), (3, -3), (-3, 3), (-2, -2)]:
+        draw.text((REEL_W // 2 + dx, y_hl + dy), headline_wrap,
+                  font=font_headline, fill=(0, 0, 0, 200), anchor="mt", align="center")
     draw.text((REEL_W // 2, y_hl), headline_wrap,
               font=font_headline, fill=(255, 255, 255), anchor="mt", align="center")
 
-    baris_hl = headline_wrap.count("\n") + 1
-    y_after_hl = y_hl + baris_hl * 68 + 24
+    baris_hl  = headline_wrap.count("\n") + 1
+    y_setelah = y_hl + baris_hl * 78
 
-    # ── Divider ───────────────────────────────────────────────────────────
-    draw.rectangle(
-        [(80, y_after_hl), (REEL_W - 80, y_after_hl + 3)],
-        fill=(*warna, 200),
-    )
+    # ── Garis aksen berwarna ──────────────────────────────────────────────
+    garis_y = min(y_setelah + 18, REEL_H - 76)
+    draw.rectangle([(60, garis_y), (REEL_W - 60, garis_y + 5)], fill=(*warna, 220))
 
-    # ── Bullet poin ───────────────────────────────────────────────────────
-    font_poin = _cari_font(34)
-    y_poin    = y_after_hl + 22
-    for poin in poin_list[:3]:
-        poin_wrap = _wrap("▸  " + poin, max_chars=30)
-        draw.text((REEL_W // 2 + 1, y_poin + 1), poin_wrap,
-                  font=font_poin, fill=(0, 0, 0, 160), anchor="mt", align="center")
-        draw.text((REEL_W // 2, y_poin), poin_wrap,
-                  font=font_poin, fill=(220, 220, 255), anchor="mt", align="center")
-        y_poin += (poin_wrap.count("\n") + 1) * 46 + 12
+    # ── Footer kecil ─────────────────────────────────────────────────────
+    font_foot = _cari_font(27)
+    draw.text((REEL_W // 2, garis_y + 20),
+              "📺 INFO BOLA  •  Update Sepak Bola Terkini",
+              font=font_foot, fill=(190, 190, 190, 210), anchor="mt", align="center")
 
-    # ── Ticker bawah ──────────────────────────────────────────────────────
-    ticker_y = REEL_H - 110
-    draw.rectangle([(0, ticker_y), (REEL_W, ticker_y + 60)], fill=(255, 30, 30))
-    ticker_teks = f"  📺 INFO BOLA  •  {ticker[:60] if ticker else 'Update Sepak Bola Terkini'}  "
-    font_ticker = _cari_font(28)
-    draw.text((REEL_W // 2, ticker_y + 30), ticker_teks,
-              font=font_ticker, fill=(255, 255, 255), anchor="mm")
-
-    # ── Watermark kanan atas ──────────────────────────────────────────────
-    font_wm = _cari_font(28)
-    draw.text((REEL_W - 30, 28), "INFO BOLA ⚽",
-              font=font_wm, fill=(255, 255, 255, 200), anchor="rt")
-
-    return np.array(canvas)
+    return np.array(canvas.convert("RGB"))
 
 
 def buat_video_berita(
@@ -524,8 +512,8 @@ def buat_video_berita(
     nama_file: str = "",
 ) -> str:
     """
-    Buat video berita vertikal 1080×1920 (Reels/TikTok format).
-    Dengan layout broadcast: banner topik, headline, bullet poin, ticker.
+    Buat video Reels vertikal 1080×1920 style siaran olahraga.
+    Foto pemain full-bleed + Ken Burns zoom + headline besar fade-in + musik.
     Return path file MP4, atau string kosong jika gagal.
     """
     if not MOVIEPY_AVAILABLE:
@@ -537,42 +525,55 @@ def buat_video_berita(
         import numpy as np
         from moviepy.editor import VideoClip, AudioArrayClip
 
-        # Download gambar vertikal
+        # Minta gambar portrait 9:16 dari Pollinations (lebih tinggi → crop ke 1080x1920)
         img_url_v = image_url
         if "image.pollinations.ai" in image_url:
-            img_url_v = re.sub(r'width=\d+', 'width=1080', image_url)
+            img_url_v = re.sub(r'width=\d+',  'width=1080',  image_url)
             img_url_v = re.sub(r'height=\d+', 'height=1920', img_url_v)
 
-        log.info(f"Download gambar berita: {img_url_v[:70]}...")
+        log.info(f"Download gambar portrait 9:16: {img_url_v[:70]}...")
         img_path = _download_image(img_url_v)
 
-        img_base     = Image.open(img_path).convert("RGB")
-        img_base     = img_base.resize((REEL_W, int(REEL_H * 0.55)), Image.LANCZOS)
+        # Resize ke FULL frame 1080×1920 (foto mengisi seluruh frame)
+        img_base = Image.open(img_path).convert("RGB")
+        # Smart crop: perbesar dulu lalu crop tengah agar tidak distorsi
+        orig_w, orig_h = img_base.size
+        scale = max(REEL_W / orig_w, REEL_H / orig_h)
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+        img_resized = img_base.resize((new_w, new_h), Image.LANCZOS)
+        left = (new_w - REEL_W) // 2
+        top  = (new_h - REEL_H) // 2
+        img_base = img_resized.crop((left, top, left + REEL_W, top + REEL_H))
 
-        # Ambil poin dari caption (3 kalimat pertama)
-        poin_list = _ambil_poin(caption, max_poin=3)
+        img_arr     = np.array(img_base)                  # (1920, 1080, 3)
+        frame_teks  = _buat_frame_berita(img_base, topik, headline)  # statis dengan teks
 
-        # Ticker = judul berita disingkat
-        ticker = re.sub(r'[^\w\s\-|]', '', headline)[:70]
-
-        frame_statis = _buat_frame_berita(img_base, topik, headline, poin_list, ticker)
-
-        # Ken Burns ringan pada frame vertikal
-        img_arr = np.array(img_base.resize((REEL_W, REEL_H), Image.LANCZOS))
-
+        # Ken Burns: zoom perlahan 1.0x → 1.12x + fade-in teks setelah 0.8 detik
         def make_frame(t: float) -> np.ndarray:
-            if t < 1.0:
-                return img_arr
-            alpha = min(1.0, (t - 1.0) / 0.8)
+            progress = t / REEL_DURASI
+            scale_kb = 1.0 + 0.12 * progress
+            h, w     = img_arr.shape[:2]
+            new_h_kb = int(h / scale_kb)
+            new_w_kb = int(w / scale_kb)
+            y1 = (h - new_h_kb) // 2
+            x1 = (w - new_w_kb) // 2
+            zoomed = np.array(
+                Image.fromarray(img_arr[y1:y1 + new_h_kb, x1:x1 + new_w_kb])
+                    .resize((w, h), Image.LANCZOS)
+            )
+            if t < 0.8:
+                return zoomed
+            alpha = min(1.0, (t - 0.8) / 0.7)
             return (
-                img_arr.astype(np.float32) * (1 - alpha)
-                + frame_statis.astype(np.float32) * alpha
+                zoomed.astype(np.float32) * (1 - alpha)
+                + frame_teks.astype(np.float32) * alpha
             ).astype(np.uint8)
 
         clip = VideoClip(make_frame, duration=REEL_DURASI)
         clip = clip.fadein(0.5).fadeout(0.5)
 
-        # Musik latar (lebih pendek, BPM lebih hype untuk Reels)
+        # Musik latar
         musik_mono   = _buat_musik_latar(REEL_DURASI, SAMPLE_RATE)
         musik_stereo = np.column_stack([musik_mono, musik_mono])
         audio_clip   = AudioArrayClip(musik_stereo, fps=SAMPLE_RATE).set_duration(REEL_DURASI)
@@ -585,7 +586,7 @@ def buat_video_berita(
             nama_file = f"reel_{slug}_{ts}.mp4"
 
         output_path = os.path.join(output_dir, nama_file)
-        log.info(f"Render video berita → {output_path}")
+        log.info(f"Render Reels video → {output_path}")
 
         clip.write_videofile(
             output_path,
@@ -595,11 +596,12 @@ def buat_video_berita(
             audio_fps=SAMPLE_RATE,
             logger=None,
             threads=2,
-            preset="ultrafast",
+            preset="fast",
+            ffmpeg_params=["-crf", "20", "-profile:v", "high"],
         )
         clip.close()
         audio_clip.close()
-        log.info(f"Video berita selesai: {output_path}")
+        log.info(f"Reels video selesai: {output_path}")
         return output_path
 
     except Exception as e:
