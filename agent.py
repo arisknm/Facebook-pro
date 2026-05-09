@@ -61,8 +61,10 @@ class FootballContentAgent:
             if not mendatang:
                 return {"status": "tidak_ada_pertandingan"}
             hari_lagi, fixtures_depan = mendatang[0]
-            label = "besok" if hari_lagi == 1 else f"{hari_lagi} hari lagi"
-            log.info(f"Ditemukan pertandingan {label}, membuat konten hype countdown...")
+            from datetime import timedelta
+            tgl = (datetime.now() + timedelta(days=hari_lagi)).strftime("%A, %d %B %Y")
+            label = tgl  # tampilkan tanggal aktual
+            log.info(f"Ditemukan pertandingan pada {tgl}, membuat konten hype countdown...")
             fixture_teks = [api.format_fixture_untuk_prompt(f) for f in fixtures_depan]
             konten = gen.buat_hype_mendatang(fixture_teks, hari_lagi)
             hasil = {"konten": konten, "platform": [], "countdown": f"H-{hari_lagi}"}

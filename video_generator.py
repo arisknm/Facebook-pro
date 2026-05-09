@@ -507,13 +507,17 @@ def _buat_frame_berita(
     draw.text((REEL_W // 2, badge_y + bh // 2), badge_text,
               font=font_badge, fill=(255, 255, 255), anchor="mm")
 
-    # ── Headline — HANYA HOOK PENDEK, max 2 baris ────────────────────────
-    # Ambil max 6-7 kata pertama sebagai hook visual, sisanya di caption
-    kata = re.sub(r'[^\w\s\-|:/!?.,]', '', headline).split()
-    hook = " ".join(kata[:7]).upper()          # max 7 kata
-    headline_wrap = _wrap(hook, max_chars=18)  # max 18 karakter per baris → 2 baris max
-    font_headline = _cari_font(74)             # lebih besar karena teks lebih pendek
-    y_hl          = badge_y + bh + 24
+    # ── Hook visual — SANGAT PENDEK, gaya "EL CLASICO" ──────────────────
+    # Ambil max 3 kata kunci paling penting (kata kapital / kata utama)
+    kata_semua = re.sub(r'[^\w\s]', '', headline).split()
+    # Prioritaskan kata yang diawali huruf kapital (nama tim/pemain/event)
+    kata_penting = [k for k in kata_semua if k[0].isupper() and len(k) > 2][:3]
+    if not kata_penting:
+        kata_penting = kata_semua[:3]
+    hook          = " ".join(kata_penting).upper()
+    headline_wrap = _wrap(hook, max_chars=12)   # max 12 karakter per baris → 1-2 baris
+    font_headline = _cari_font(96)              # besar dan bold
+    y_hl          = badge_y + bh + 28
 
     hl_bbox = draw.multiline_textbbox((0, 0), headline_wrap, font=font_headline, align="center")
     hl_w    = hl_bbox[2] - hl_bbox[0]
@@ -526,7 +530,7 @@ def _buat_frame_berita(
                         font=font_headline, fill=(255, 255, 255), align="center")
 
     baris_hl  = headline_wrap.count("\n") + 1
-    y_setelah = y_hl + baris_hl * 86
+    y_setelah = y_hl + baris_hl * 110
 
     # ── Garis aksen berwarna ──────────────────────────────────────────────
     garis_y = min(y_setelah + 18, REEL_H - 76)
@@ -562,26 +566,46 @@ def buat_video_berita(
 
     img_path = ""
     try:
-        # Minta gambar portrait 9:16 dari Pollinations (lebih tinggi → crop ke 1080x1920)
+        # Untuk Pollinations, minta portrait 9:16. Untuk gambar landscape (RSS), tetap download.
         img_url_v = image_url
         if "image.pollinations.ai" in image_url:
             img_url_v = re.sub(r'width=\d+',  'width=1080',  image_url)
             img_url_v = re.sub(r'height=\d+', 'height=1920', img_url_v)
 
-        log.info(f"Download gambar portrait 9:16: {img_url_v[:70]}...")
+        log.info(f"Download gambar: {img_url_v[:70]}...")
         img_path = _download_image(img_url_v)
 
-        # Resize ke FULL frame 1080×1920 (foto mengisi seluruh frame)
-        img_base = Image.open(img_path).convert("RGB")
-        # Smart crop: perbesar dulu lalu crop tengah agar tidak distorsi
-        orig_w, orig_h = img_base.size
-        scale = max(REEL_W / orig_w, REEL_H / orig_h)
-        new_w = int(orig_w * scale)
-        new_h = int(orig_h * scale)
-        img_resized = img_base.resize((new_w, new_h), Image.LANCZOS)
-        left = (new_w - REEL_W) // 2
-        top  = (new_h - REEL_H) // 2
-        img_base = img_resized.crop((left, top, left + REEL_W, top + REEL_H))
+        img_raw  = Image.open(img_path).convert("RGB")
+        orig_w, orig_h = img_raw.size
+        is_landscape = orig_w > orig_h * 1.2   # landscape jika lebar > 1.2x tinggi
+
+        if is_landscape:
+            # Gambar landscape (mis. RSS BBC 16:9): blur + fill portrait
+            # 1. Scale gambar agar lebar = REEL_W, posisi di tengah vertikal
+            scale_w  = REEL_W / orig_w
+            fit_w    = REEL_W
+            fit_h    = int(orig_h * scale_w)
+            img_fit  = img_raw.resize((fit_w, fit_h), Image.LANCZOS)
+            # 2. Latar belakang: gambar di-blur + scale penuh ke frame
+            import PIL.ImageFilter as _IF
+            bg = img_raw.resize((REEL_W, REEL_H), Image.LANCZOS)
+            bg = bg.filter(_IF.GaussianBlur(radius=22))
+            # Gelapi latar agar tidak terlalu terang
+            dark = Image.new("RGB", (REEL_W, REEL_H), (0, 0, 0))
+            bg   = Image.blend(bg, dark, 0.45)
+            # 3. Paste gambar asli di tengah vertikal
+            y_offset = (REEL_H - fit_h) // 2
+            bg.paste(img_fit, (0, y_offset))
+            img_base = bg
+        else:
+            # Gambar portrait / square: smart crop ke 1080×1920
+            scale = max(REEL_W / orig_w, REEL_H / orig_h)
+            new_w = int(orig_w * scale)
+            new_h = int(orig_h * scale)
+            img_resized = img_raw.resize((new_w, new_h), Image.LANCZOS)
+            left = (new_w - REEL_W) // 2
+            top  = (new_h - REEL_H) // 2
+            img_base = img_resized.crop((left, top, left + REEL_W, top + REEL_H))
 
         img_arr     = np.array(img_base)                  # (1920, 1080, 3)
         frame_teks  = _buat_frame_berita(img_base, topik, headline)  # statis dengan teks
