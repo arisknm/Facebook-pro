@@ -278,11 +278,13 @@ def _buat_frame(img_pil: "Image.Image", judul: str, poin_list: list) -> "np.ndar
     font_judul   = _cari_font(58)
     y_judul      = int(h * 0.55)
 
+    jd_bbox = draw2.multiline_textbbox((0, 0), judul_wrap, font=font_judul, align="center")
+    jd_x    = (w - (jd_bbox[2] - jd_bbox[0])) // 2
     for dx, dy in [(3, 3), (3, -3), (-2, 2)]:
-        draw2.text((w // 2 + dx, y_judul + dy), judul_wrap, font=font_judul,
-                   fill=(0, 0, 0, 195), anchor="mt", align="center")
-    draw2.text((w // 2, y_judul), judul_wrap, font=font_judul,
-               fill=(255, 255, 255), anchor="mt", align="center")
+        draw2.multiline_text((jd_x + dx, y_judul + dy), judul_wrap, font=font_judul,
+                             fill=(0, 0, 0, 195), align="center")
+    draw2.multiline_text((jd_x, y_judul), judul_wrap, font=font_judul,
+                         fill=(255, 255, 255), align="center")
 
     # Garis merah di bawah judul
     baris = judul_wrap.count("\n") + 1
@@ -294,10 +296,12 @@ def _buat_frame(img_pil: "Image.Image", judul: str, poin_list: list) -> "np.ndar
         font_poin = _cari_font(32)
         poin_wrap = _wrap(poin_list[0][:70], max_chars=34)
         y_poin    = y_garis + 20
-        draw2.text((w // 2 + 1, y_poin + 1), poin_wrap, font=font_poin,
-                   fill=(0, 0, 0, 170), anchor="mt", align="center")
-        draw2.text((w // 2, y_poin), poin_wrap, font=font_poin,
-                   fill=(255, 221, 68, 235), anchor="mt", align="center")
+        pn_bbox   = draw2.multiline_textbbox((0, 0), poin_wrap, font=font_poin, align="center")
+        pn_x      = (w - (pn_bbox[2] - pn_bbox[0])) // 2
+        draw2.multiline_text((pn_x + 1, y_poin + 1), poin_wrap, font=font_poin,
+                             fill=(0, 0, 0, 170), align="center")
+        draw2.multiline_text((pn_x, y_poin), poin_wrap, font=font_poin,
+                             fill=(255, 221, 68, 235), align="center")
 
     return np.array(frame.convert("RGB"))
 
@@ -509,11 +513,16 @@ def _buat_frame_berita(
     font_headline  = _cari_font(66)
     y_hl           = badge_y + bh + 20
 
+    # Hitung x agar center (Pillow 12+ tidak izinkan anchor pada multiline)
+    hl_bbox = draw.multiline_textbbox((0, 0), headline_wrap, font=font_headline, align="center")
+    hl_w    = hl_bbox[2] - hl_bbox[0]
+    hl_x    = (REEL_W - hl_w) // 2
+
     for dx, dy in [(3, 3), (3, -3), (-3, 3), (-2, -2)]:
-        draw.text((REEL_W // 2 + dx, y_hl + dy), headline_wrap,
-                  font=font_headline, fill=(0, 0, 0, 200), anchor="mt", align="center")
-    draw.text((REEL_W // 2, y_hl), headline_wrap,
-              font=font_headline, fill=(255, 255, 255), anchor="mt", align="center")
+        draw.multiline_text((hl_x + dx, y_hl + dy), headline_wrap,
+                            font=font_headline, fill=(0, 0, 0, 200), align="center")
+    draw.multiline_text((hl_x, y_hl), headline_wrap,
+                        font=font_headline, fill=(255, 255, 255), align="center")
 
     baris_hl  = headline_wrap.count("\n") + 1
     y_setelah = y_hl + baris_hl * 78
@@ -524,9 +533,11 @@ def _buat_frame_berita(
 
     # ── Footer kecil ─────────────────────────────────────────────────────
     font_foot = _cari_font(27)
-    draw.text((REEL_W // 2, garis_y + 20),
-              "📺 INFO BOLA  •  Update Sepak Bola Terkini",
-              font=font_foot, fill=(190, 190, 190, 210), anchor="mt", align="center")
+    foot_text = "INFO BOLA  -  Update Sepak Bola Terkini"
+    foot_bbox = draw.textbbox((0, 0), foot_text, font=font_foot)
+    foot_x    = (REEL_W - (foot_bbox[2] - foot_bbox[0])) // 2
+    draw.text((foot_x, garis_y + 20), foot_text,
+              font=font_foot, fill=(190, 190, 190, 210))
 
     return np.array(canvas.convert("RGB"))
 
