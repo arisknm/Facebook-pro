@@ -339,9 +339,28 @@ class FootballContentAgent:
 
         try:
             if video_path:
-                res = fb.upload_video_file(caption, video_path, headline)
-                log.info(f"Facebook: video berita {label} — ID {res.get('id')}")
-                hasil["platform"].append({"facebook": res, "tipe": "reel"})
+                posted = False
+                # Coba Reels API (video vertikal 9:16 = format Reels ideal)
+                try:
+                    res = fb.upload_reels(caption, video_path, headline)
+                    log.info(f"Facebook Reels: berita {label} — ID {res.get('video_id')}")
+                    hasil["platform"].append({"facebook": res, "tipe": "reels"})
+                    posted = True
+                except Exception as er:
+                    log.warning(f"Reels gagal ({er}), coba video biasa...")
+                # Fallback ke upload video biasa
+                if not posted:
+                    try:
+                        res = fb.upload_video_file(caption, video_path, headline)
+                        log.info(f"Facebook video: berita {label} — ID {res.get('id')}")
+                        hasil["platform"].append({"facebook": res, "tipe": "video"})
+                        posted = True
+                    except Exception as ev:
+                        log.warning(f"Video biasa juga gagal ({ev}), fallback ke foto")
+                # Fallback ke foto
+                if not posted:
+                    res = fb.post_dengan_gambar(caption, image_url)
+                    hasil["platform"].append({"facebook": res, "tipe": "foto"})
                 try:
                     os.unlink(video_path)
                 except Exception:
@@ -478,20 +497,33 @@ class FootballContentAgent:
             if image_url:
                 video_path = vg.buat_video(judul or "Info Bola", caption, image_url)
                 if video_path:
+                    posted = False
+                    # Coba Reels API dulu (lebih besar jangkauan organik)
                     try:
-                        res = fb.upload_video_file(caption, video_path, judul)
-                        log.info(f"Facebook: diposting sebagai VIDEO — ID {res.get('id')}")
-                        hasil["platform"].append({"facebook": res, "tipe": "video"})
-                    except Exception as ev:
-                        log.warning(f"Upload video FB gagal ({ev}), fallback ke foto")
+                        res = fb.upload_reels(caption, video_path, judul)
+                        log.info(f"Facebook: diposting sebagai REELS — ID {res.get('video_id')}")
+                        hasil["platform"].append({"facebook": res, "tipe": "reels"})
+                        posted = True
+                    except Exception as er:
+                        log.warning(f"Reels upload gagal ({er}), coba video biasa...")
+                    # Fallback ke upload video biasa
+                    if not posted:
+                        try:
+                            res = fb.upload_video_file(caption, video_path, judul)
+                            log.info(f"Facebook: diposting sebagai VIDEO — ID {res.get('id')}")
+                            hasil["platform"].append({"facebook": res, "tipe": "video"})
+                            posted = True
+                        except Exception as ev:
+                            log.warning(f"Upload video biasa juga gagal ({ev}), fallback ke foto")
+                    # Fallback ke foto
+                    if not posted:
                         res = fb.post_dengan_gambar(caption, image_url)
                         log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
                         hasil["platform"].append({"facebook": res, "tipe": "foto"})
-                    finally:
-                        try:
-                            os.unlink(video_path)
-                        except Exception:
-                            pass
+                    try:
+                        os.unlink(video_path)
+                    except Exception:
+                        pass
                 else:
                     res = fb.post_dengan_gambar(caption, image_url)
                     log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")

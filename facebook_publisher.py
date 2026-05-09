@@ -135,6 +135,67 @@ def upload_video_file(caption: str, file_path: str, judul: str = "") -> dict:
     return resp.json()
 
 
+def upload_reels(caption: str, file_path: str, judul: str = "") -> dict:
+    """Upload video sebagai Facebook Reels (vertical 9:16) via Reels API 3-langkah.
+    Step 1: Initialize → dapatkan video_id + upload_url
+    Step 2: Upload binary ke upload_url
+    Step 3: Publish dengan description
+    """
+    _check_config()
+    file_size = os.path.getsize(file_path)
+
+    # Step 1 — Initialize
+    init_resp = requests.post(
+        f"{GRAPH_BASE}/{FACEBOOK_PAGE_ID}/video_reels",
+        data={
+            "upload_phase": "start",
+            "access_token": FACEBOOK_ACCESS_TOKEN,
+        },
+        timeout=30,
+    )
+    if not init_resp.ok:
+        _raise_facebook_error(init_resp)
+    init_data  = init_resp.json()
+    video_id   = init_data["video_id"]
+    upload_url = init_data["upload_url"]
+
+    # Step 2 — Transfer binary
+    with open(file_path, "rb") as f:
+        up_resp = requests.post(
+            upload_url,
+            headers={
+                "Authorization": f"OAuth {FACEBOOK_ACCESS_TOKEN}",
+                "offset": "0",
+                "file_size": str(file_size),
+            },
+            data=f,
+            timeout=300,
+        )
+    if not up_resp.ok:
+        raise requests.HTTPError(
+            f"Reels upload transfer gagal: {up_resp.status_code} {up_resp.text[:300]}"
+        )
+
+    # Step 3 — Publish
+    finish_data: dict = {
+        "upload_phase"  : "finish",
+        "video_id"      : video_id,
+        "video_state"   : "PUBLISHED",
+        "description"   : caption[:2200],
+        "access_token"  : FACEBOOK_ACCESS_TOKEN,
+    }
+    if judul:
+        finish_data["title"] = judul[:255]
+    fin_resp = requests.post(
+        f"{GRAPH_BASE}/{FACEBOOK_PAGE_ID}/video_reels",
+        data=finish_data,
+        timeout=30,
+    )
+    if not fin_resp.ok:
+        _raise_facebook_error(fin_resp)
+    return {"video_id": video_id, **fin_resp.json()}
+
+
 def jadwalkan_post(caption: str, timestamp_unix: int, url_gambar: str = "") -> dict:
     """Jadwalkan post di waktu tertentu (Unix timestamp)."""
     _check_config()

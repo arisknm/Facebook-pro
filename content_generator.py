@@ -292,28 +292,66 @@ Pisahkan setiap bagian dengan === BAGIAN ===
 
 def generate_image_url(topik: str, style: str = "football") -> str:
     """Generate URL gambar 4K dari Pollinations.ai (gratis, tanpa API key).
-    Resolusi 2048x1152 (4K 16:9), model flux, enhance=true.
+    Resolusi 2048x1152, model flux, enhance=true + visual spesifik per tim/liga.
     """
     import urllib.parse
+
+    # Visual spesifik per tim/liga agar gambar tidak generik
+    _VISUAL_TIM = {
+        "liverpool"         : "Liverpool FC iconic red Adidas kit, Anfield stadium roaring Kop end",
+        "chelsea"           : "Chelsea FC royal blue jersey, Stamford Bridge London",
+        "manchester united" : "Manchester United classic red jersey, Old Trafford Theatre of Dreams",
+        "man utd"           : "Manchester United classic red jersey, Old Trafford Theatre of Dreams",
+        "manchester city"   : "Manchester City sky blue jersey, Etihad Stadium",
+        "arsenal"           : "Arsenal red white Adidas jersey, Emirates Stadium",
+        "tottenham"         : "Tottenham Hotspur white jersey, Spurs stadium",
+        "barcelona"         : "FC Barcelona iconic blaugrana jersey, Camp Nou massive crowd",
+        "real madrid"       : "Real Madrid all white jersey, Santiago Bernabeu stadium",
+        "atletico"          : "Atletico Madrid red white stripes, Metropolitano stadium",
+        "juventus"          : "Juventus black white stripes jersey, Allianz Stadium Turin",
+        "inter milan"       : "Inter Milan black blue jersey, San Siro stadium Milan",
+        "ac milan"          : "AC Milan red black jersey, San Siro stadium",
+        "psg"               : "Paris Saint-Germain dark blue red jersey, Parc des Princes Paris",
+        "dortmund"          : "Borussia Dortmund yellow black jersey, Signal Iduna Park yellow wall",
+        "bayern"            : "Bayern Munich red jersey, Allianz Arena Munich",
+        "timnas"            : "Indonesia national football team Garuda, red white jersey, packed stadium fans",
+        "persija"           : "Persija Jakarta orange-red jersey Macan Kemayoran, Gelora Bung Karno Jakarta",
+        "persib"            : "Persib Bandung blue white jersey Maung Bandung, GBLA stadium Bandung",
+        "liga champion"     : "UEFA Champions League starball trophy, massive floodlit European stadium night",
+        "liga 1"            : "BRI Liga 1 Indonesia, colorful local football supporters, vibrant stadium",
+        "premier league"    : "English Premier League iconic green pitch, packed British stadium",
+        "la liga"           : "La Liga Spanish football, sunny Mediterranean stadium",
+        "serie a"           : "Serie A Italian football, passionate Ultras crowd tifo display",
+        "bundesliga"        : "Bundesliga German football, packed stadium yellow wall atmosphere",
+    }
+
+    topik_lower = topik.lower()
+    visual_konteks = ""
+    for keyword, visual in _VISUAL_TIM.items():
+        if keyword in topik_lower:
+            visual_konteks = visual + ", "
+            break
+
     styles = {
-        "football"  : "professional football soccer action photography, packed stadium roaring crowd, cinematic dramatic lighting, ultra sharp 4K, hyperrealistic, Canon EOS R5",
-        "transfer"  : "football star player transfer signing, media conference, new jersey reveal, flash photography, ultra sharp professional, 4K cinematic",
-        "viral"     : "epic football viral moment, massive stadium crowd explosion, dramatic aerial cinematic shot, ultra realistic 4K",
-        "klasemen"  : "football league championship golden trophy ceremony, confetti rain celebration, ultra HD 4K photorealistic",
-        "hype"      : "football match epic night atmosphere, blazing stadium floodlights, electric crowd wave, dramatic wide angle 4K ultra sharp",
-        "statistik" : "football data analytics neon dashboard, modern dark infographic, professional sports broadcast, 4K ultra HD",
+        "football"  : "action sports photography, packed roaring stadium, cinematic dramatic lighting, motion blur, hyperrealistic",
+        "transfer"  : "football transfer signing announcement, media conference stage, new jersey reveal, press cameras flash",
+        "viral"     : "epic viral football moment, massive crowd explosion, dramatic wide angle aerial shot",
+        "klasemen"  : "football league championship golden trophy ceremony, confetti rain, victorious celebration",
+        "hype"      : "epic match night atmosphere, blazing stadium floodlights, electric crowd energy",
+        "statistik" : "sports statistics broadcast overlay, modern dark neon infographic, professional TV studio",
     }
     style_text = styles.get(style, styles["football"])
+
     prompt = (
-        f"{topik}, {style_text}, "
-        f"4K ultra HD resolution, photorealistic, award winning sports photography, "
-        f"tack sharp focus, vivid colors, professional studio lighting"
+        f"{visual_konteks}{topik}, {style_text}, "
+        f"Canon EOS R5 100mm f/1.4, tack sharp focus, 4K ultra HD photorealistic, "
+        f"award winning sports photography, vivid saturated colors, dramatic professional lighting"
     )
     encoded = urllib.parse.quote(prompt)
     seed    = abs(hash(topik)) % 99999
     return (
         f"https://image.pollinations.ai/prompt/{encoded}"
-        f"?width=2048&height=1152&model=flux&enhance=true&nologo=true&seed={seed}"
+        f"?width=2048&height=1152&model=flux&enhance=true&nologo=true&safe=false&seed={seed}"
     )
 
 
