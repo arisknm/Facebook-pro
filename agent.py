@@ -339,34 +339,21 @@ class FootballContentAgent:
 
         try:
             if video_path:
-                posted = False
-                # Coba Reels API (video vertikal 9:16 = format Reels ideal)
                 try:
-                    res = fb.upload_reels(caption, video_path, headline)
-                    log.info(f"Facebook Reels: berita {label} — ID {res.get('video_id')}")
-                    hasil["platform"].append({"facebook": res, "tipe": "reels"})
-                    posted = True
-                except Exception as er:
-                    log.warning(f"Reels gagal ({er}), coba video biasa...")
-                # Fallback ke upload video biasa
-                if not posted:
-                    try:
-                        res = fb.upload_video_file(caption, video_path, headline)
-                        log.info(f"Facebook video: berita {label} — ID {res.get('id')}")
-                        hasil["platform"].append({"facebook": res, "tipe": "video"})
-                        posted = True
-                    except Exception as ev:
-                        log.warning(f"Video biasa juga gagal ({ev}), fallback ke foto")
-                # Fallback ke foto
-                if not posted:
+                    res = fb.upload_video_file(caption, video_path, headline)
+                    log.info(f"Facebook VIDEO berita {label} — ID {res.get('id')}")
+                    hasil["platform"].append({"facebook": res, "tipe": "video_reel"})
+                except Exception as ev:
+                    log.warning(f"Upload video gagal: {ev} — fallback ke foto")
                     res = fb.post_dengan_gambar(caption, image_url)
                     hasil["platform"].append({"facebook": res, "tipe": "foto"})
-                try:
-                    os.unlink(video_path)
-                except Exception:
-                    pass
+                finally:
+                    try:
+                        os.unlink(video_path)
+                    except Exception:
+                        pass
             else:
-                # Fallback ke foto
+                log.warning("Video generation gagal — fallback ke foto")
                 res = fb.post_dengan_gambar(caption, image_url)
                 hasil["platform"].append({"facebook": res, "tipe": "foto"})
         except Exception as e:
@@ -503,9 +490,9 @@ class FootballContentAgent:
 
     def _post_facebook(self, caption: str, hasil: dict, image_url: str = "",
                        judul: str = "", tipe_aff: str = "default"):
-        """Helper: posting ke Facebook + Threads sebagai Reels 9:16.
-        Semua post menggunakan format video vertikal Reels.
-        Fallback chain: Reels API → video biasa → foto → teks.
+        """Helper: posting ke Facebook + Threads sebagai video vertikal 9:16.
+        Video 9:16 otomatis ditampilkan sebagai Reels oleh Facebook.
+        Fallback chain: video → foto → teks.
         """
         caption = aff.tambah_affiliate_ke_caption(caption, tipe_aff)
         topik_video = self._TIPE_KE_TOPIK.get(tipe_aff, "football")
@@ -513,43 +500,31 @@ class FootballContentAgent:
         # ── Facebook ──────────────────────────────────────────────────────
         try:
             if image_url:
-                # Semua post pakai format Reels 9:16
-                headline = judul or caption.split("\n")[0].strip()[:90]
-                video_path = vg.buat_video_berita(
+                headline    = judul or caption.split("\n")[0].strip()[:90]
+                log.info(f"Membuat video 9:16 ({topik_video})...")
+                video_path  = vg.buat_video_berita(
                     topik=topik_video,
                     headline=headline,
                     caption=caption,
                     image_url=image_url,
                 )
                 if video_path:
-                    posted = False
-                    # Coba Reels API dulu
                     try:
-                        res = fb.upload_reels(caption, video_path, judul)
-                        log.info(f"Facebook REELS ({topik_video}) — ID {res.get('video_id')}")
-                        hasil["platform"].append({"facebook": res, "tipe": "reels"})
-                        posted = True
-                    except Exception as er:
-                        log.warning(f"Reels gagal ({er}), coba video biasa...")
-                    # Fallback video biasa
-                    if not posted:
-                        try:
-                            res = fb.upload_video_file(caption, video_path, judul)
-                            log.info(f"Facebook VIDEO ({topik_video}) — ID {res.get('id')}")
-                            hasil["platform"].append({"facebook": res, "tipe": "video"})
-                            posted = True
-                        except Exception as ev:
-                            log.warning(f"Video gagal ({ev}), fallback ke foto")
-                    # Fallback foto
-                    if not posted:
+                        res = fb.upload_video_file(caption, video_path, judul)
+                        log.info(f"Facebook VIDEO ({topik_video}) — ID {res.get('id')}")
+                        hasil["platform"].append({"facebook": res, "tipe": "video_reel"})
+                    except Exception as ev:
+                        log.warning(f"Upload video gagal: {ev} — fallback ke foto")
                         res = fb.post_dengan_gambar(caption, image_url)
                         log.info(f"Facebook FOTO — ID {res.get('id')}")
                         hasil["platform"].append({"facebook": res, "tipe": "foto"})
-                    try:
-                        os.unlink(video_path)
-                    except Exception:
-                        pass
+                    finally:
+                        try:
+                            os.unlink(video_path)
+                        except Exception:
+                            pass
                 else:
+                    log.warning("Video generation gagal — fallback ke foto")
                     res = fb.post_dengan_gambar(caption, image_url)
                     log.info(f"Facebook FOTO — ID {res.get('id')}")
                     hasil["platform"].append({"facebook": res, "tipe": "foto"})
@@ -562,7 +537,6 @@ class FootballContentAgent:
             try:
                 res = fb.post_teks(caption)
                 hasil["platform"].append({"facebook": res, "tipe": "teks_fallback"})
-                log.info("Facebook: fallback ke teks berhasil")
             except Exception as e2:
                 hasil["platform"].append({"facebook_error": str(e2)})
 

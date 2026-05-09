@@ -449,7 +449,7 @@ _LABEL_TOPIK = {
 
 REEL_W = 1080
 REEL_H = 1920
-REEL_DURASI = 25
+REEL_DURASI = 15
 
 
 def _buat_frame_berita(
