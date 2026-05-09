@@ -23,7 +23,8 @@ except ImportError:
     np = None  # type: ignore
 
 try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, VideoClip, AudioArrayClip
+    from moviepy.editor import ImageClip, CompositeVideoClip, VideoClip
+    from moviepy.audio.AudioClip import AudioArrayClip
     from PIL import Image, ImageDraw, ImageFont
     MOVIEPY_AVAILABLE = True
 except Exception as _moviepy_err:
