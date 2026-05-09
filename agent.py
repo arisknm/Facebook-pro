@@ -176,17 +176,20 @@ class FootballContentAgent:
     # ------------------------------------------------------------------ #
 
     def posting_berita_transfer(self) -> dict:
-        """06:30 — Berita transfer terkini dari RSS feed."""
+        """06:30 — Berita transfer: 1 berita utama, konten fokus & spesifik."""
         log.info("Job 06:30: berita transfer pagi")
         berita = news.get_transfer_news(jumlah=5)
         if not berita:
             log.warning("Tidak ada berita transfer ditemukan.")
             return {"status": "tidak_ada_berita"}
-        berita_teks = news.format_berita_untuk_prompt(berita)
+        # Fokus pada 1 berita transfer terpilih
+        artikel = berita[0]
+        berita_teks = news.format_berita_untuk_prompt([artikel])
         konten = gen.buat_konten_berita_transfer(berita_teks)
         self._simpan_konten("transfer_pagi", konten)
         hasil = {"konten": konten, "platform": []}
-        image_url = gen.generate_image_url(berita[0]["title"], style="transfer")
+        # Gambar asli dari RSS atau TheSportsDB berdasarkan judul berita
+        image_url = artikel.get("image_url") or gen.generate_image_url(artikel["title"], style="transfer")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
                             judul=konten.get("youtube_title", "Berita Transfer Terkini"),
                             tipe_aff="transfer")
@@ -209,17 +212,20 @@ class FootballContentAgent:
         return hasil
 
     def posting_topik_viral(self) -> dict:
-        """15:00 — Konten topik viral sepak bola sore hari."""
+        """15:00 — Konten topik viral: 1 berita terpilih, konten fokus."""
         log.info("Job 15:00: topik viral sore")
         berita = news.get_viral_topics(jumlah=5)
         if not berita:
             log.warning("Tidak ada topik viral ditemukan.")
             return {"status": "tidak_ada_topik"}
-        berita_teks = news.format_berita_untuk_prompt(berita)
+        # Fokus pada 1 berita terpopuler saja
+        artikel = berita[0]
+        berita_teks = news.format_berita_untuk_prompt([artikel])
         konten = gen.buat_konten_topik_viral(berita_teks)
         self._simpan_konten("viral_sore", konten)
         hasil = {"konten": konten, "platform": []}
-        image_url = gen.generate_image_url(berita[0]["title"], style="viral")
+        # Gambar asli dari RSS atau TheSportsDB
+        image_url = artikel.get("image_url") or gen.generate_image_url(artikel["title"], style="viral")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
                             judul=konten.get("youtube_title", "Topik Viral Sepak Bola"),
                             tipe_aff="viral")
@@ -319,15 +325,17 @@ class FootballContentAgent:
         poin_list = konten.get("poin_video", [])
         caption   = konten.get("facebook_caption", "")
 
-        # Gambar background (portrait untuk video vertikal) — selalu 4K AI, bukan RSS thumbnail
-        style_map = {
-            "timnas": "football", "liga1": "football",
-            "persija": "football", "persib": "football",
-            "manchester_united": "football", "liga_champion": "klasemen",
-        }
-        image_url = gen.generate_image_url(
-            f"{label} football", style=style_map.get(topik, "football")
-        )
+        # Gunakan gambar asli dari RSS jika ada, fallback ke TheSportsDB/Pollinations
+        image_url = berita[0].get("image_url") or ""
+        if not image_url:
+            style_map = {
+                "timnas": "football", "liga1": "football",
+                "persija": "football", "persib": "football",
+                "manchester_united": "football", "liga_champion": "klasemen",
+            }
+            image_url = gen.generate_image_url(
+                f"{label} football", style=style_map.get(topik, "football")
+            )
 
         # Buat video vertikal 9:16
         video_path = vg.buat_video_berita(

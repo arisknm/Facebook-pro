@@ -332,10 +332,43 @@ Pisahkan setiap bagian dengan === BAGIAN ===
     return hasil
 
 
+def get_real_photo_url(keyword: str) -> str:
+    """Cari foto asli pemain/tim dari TheSportsDB. Return URL atau string kosong."""
+    if not keyword or len(keyword) < 3:
+        return ""
+    try:
+        # Coba cari sebagai pemain dulu
+        r = requests.get(
+            "https://www.thesportsdb.com/api/v1/json/3/searchplayers.php",
+            params={"p": keyword[:50]}, timeout=8,
+        )
+        data = r.json() if r.ok else {}
+        players = data.get("player") or []
+        for p in players:
+            url = p.get("strThumb") or p.get("strCutout") or ""
+            if url and url.startswith("http"):
+                log.info(f"TheSportsDB player photo: {p.get('strPlayer')} → {url[:60]}")
+                return url
+
+        # Fallback: cari sebagai tim
+        r2 = requests.get(
+            "https://www.thesportsdb.com/api/v1/json/3/searchteams.php",
+            params={"t": keyword[:50]}, timeout=8,
+        )
+        data2 = r2.json() if r2.ok else {}
+        teams = data2.get("teams") or []
+        for t in teams:
+            url = t.get("strTeamBanner") or t.get("strTeamFanart1") or t.get("strTeamLogo") or ""
+            if url and url.startswith("http"):
+                log.info(f"TheSportsDB team photo: {t.get('strTeam')} → {url[:60]}")
+                return url
+    except Exception as e:
+        log.debug(f"TheSportsDB search gagal ({keyword}): {e}")
+    return ""
+
+
 def generate_image_url(topik: str, style: str = "football") -> str:
-    """Generate URL gambar 4K dari Pollinations.ai (gratis, tanpa API key).
-    Resolusi 2048x1152, model flux, enhance=true + visual spesifik per tim/liga.
-    """
+    """Generate URL gambar — coba foto asli TheSportsDB dulu, fallback ke Pollinations AI."""
     import urllib.parse
 
     # Visual spesifik per tim/liga agar gambar tidak generik
@@ -368,6 +401,14 @@ def generate_image_url(topik: str, style: str = "football") -> str:
     }
 
     topik_lower = topik.lower()
+
+    # Coba foto asli dari TheSportsDB untuk kata kunci spesifik
+    _kata_cari = [w for w in topik.split() if len(w) > 3 and w.istitle()]
+    if _kata_cari:
+        real_url = get_real_photo_url(" ".join(_kata_cari[:3]))
+        if real_url:
+            return real_url
+
     visual_konteks = ""
     for keyword, visual in _VISUAL_TIM.items():
         if keyword in topik_lower:
