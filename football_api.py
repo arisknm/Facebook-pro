@@ -70,6 +70,22 @@ def get_fixtures_kemarin(liga_ids=None) -> list[dict]:
     return hasil
 
 
+def get_fixtures_mendatang(max_hari: int = 7) -> list[dict]:
+    """Ambil pertandingan mendatang dalam max_hari hari ke depan."""
+    liga_names = set(LIGA_FAVORIT)
+    hasil = []
+    for offset in range(1, max_hari + 1):
+        tanggal = _tanggal(offset)
+        data = _get("eventsday.php", {"d": tanggal, "s": "Soccer"})
+        events = data.get("events") or []
+        for e in events:
+            if e.get("strLeague") in liga_names:
+                hasil.append(e)
+        if len(hasil) >= 10:
+            break
+    return hasil
+
+
 def get_standings(nama_liga: str) -> list[dict]:
     """Ambil klasemen liga."""
     if nama_liga not in LIGA_SEASON:
