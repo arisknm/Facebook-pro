@@ -26,9 +26,9 @@ try:
     from moviepy.editor import ImageClip, CompositeVideoClip, VideoClip, AudioArrayClip
     from PIL import Image, ImageDraw, ImageFont
     MOVIEPY_AVAILABLE = True
-except ImportError:
+except Exception as _moviepy_err:
     MOVIEPY_AVAILABLE = False
-    log.warning("moviepy/Pillow tidak tersedia — video generation dinonaktifkan")
+    log.warning(f"moviepy/Pillow tidak tersedia ({type(_moviepy_err).__name__}: {_moviepy_err}) — video generation dinonaktifkan")
 
 
 VIDEO_W      = 1080
