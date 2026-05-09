@@ -197,6 +197,13 @@ Posting Facebook manual:
     # --- job harian manual ---
     sub.add_parser("transfer",  help="[Facebook] Berita transfer terkini (job 06:30)")
     sub.add_parser("polling",   help="[Facebook] Polling pertandingan malam ini (job 12:00)")
+    p_topik_k = sub.add_parser("topik", help="[Facebook] Berita topik khusus rotasi harian (job 13:00)")
+    p_topik_k.add_argument(
+        "--topik",
+        default="",
+        choices=["timnas", "liga1", "persija", "persib", "manchester_united", "liga_champion", ""],
+        help="Topik spesifik (default: rotasi otomatis berdasarkan hari)",
+    )
     sub.add_parser("viral",     help="[Facebook] Topik viral sepak bola (job 15:00)")
     sub.add_parser("pengingat", help="[Facebook] Pengingat pertandingan malam (job 19:00)")
     sub.add_parser("statistik", help="[Facebook] Statistik menarik malam ini (job 23:30)")
@@ -347,6 +354,17 @@ Posting Facebook manual:
             cetak_konten(hasil["konten"])
         print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
 
+    elif args.perintah == "topik":
+        topik = getattr(args, "topik", "") or ""
+        label = topik or "rotasi hari ini"
+        print(f"Posting berita topik khusus ({label}) ke Facebook + Threads...")
+        hasil = agent.posting_berita_topik_khusus(topik)
+        if "konten" in hasil:
+            print("\n" + "=" * 60)
+            print(hasil["konten"].get("facebook_caption", ""))
+            print("=" * 60)
+        print(json.dumps(hasil.get("platform", []), indent=2, ensure_ascii=False))
+
     elif args.perintah == "polling":
         print("Posting polling interaktif ke Facebook...")
         hasil = agent.posting_polling()
@@ -386,6 +404,7 @@ Posting Facebook manual:
             ("Berita transfer",        agent.posting_berita_transfer),
             ("Preview pertandingan",   agent.posting_preview_hari_ini),
             ("Polling interaktif",     agent.posting_polling),
+            ("Topik khusus hari ini",  agent.posting_berita_topik_khusus),
             ("Topik viral",            agent.posting_topik_viral),
             ("Pengingat pertandingan", agent.posting_pengingat_pertandingan),
             ("Rekap hasil kemarin",    agent.posting_rekap_kemarin),

@@ -242,6 +242,54 @@ def _parse_output_pundit(teks: str) -> dict:
     return hasil
 
 
+def buat_konten_topik_khusus(berita_teks: str, topik: str) -> dict:
+    """Buat konten berita untuk topik spesifik (Timnas, Liga1, Persija, dll.)."""
+    label_map = {
+        "timnas"            : "Timnas Indonesia & pemain Indonesia di luar negeri",
+        "liga1"             : "BRI Liga 1 Indonesia",
+        "persija"           : "Persija Jakarta",
+        "persib"            : "Persib Bandung",
+        "manchester_united" : "Manchester United",
+        "liga_champion"     : "UEFA Champions League",
+    }
+    label = label_map.get(topik, topik)
+    prompt = f"""
+Buat konten berita sepak bola tentang {label} untuk media sosial.
+
+Berita terkini:
+{berita_teks}
+
+Format output:
+1. CAPTION FACEBOOK (200-280 kata, informatif, engaging, emoji, hashtag)
+2. HEADLINE VIDEO (1 kalimat tajam, maks 70 karakter — untuk judul di video)
+3. POIN UTAMA (3 poin singkat, masing-masing maks 55 karakter — untuk bullet di video)
+4. TAGS YOUTUBE (12-15 tag relevan)
+
+Pisahkan setiap bagian dengan === BAGIAN ===
+"""
+    raw    = _chat(prompt)
+    bagian = raw.split("=== BAGIAN ===") if "=== BAGIAN ===" in raw else __import__("re").split(r"===\s*[^=]+\s*===", raw)
+    bagian = [b.strip() for b in bagian if b.strip()]
+
+    hasil = {
+        "facebook_caption": bagian[0] if len(bagian) > 0 else "",
+        "headline_video"  : bagian[1].split("\n")[0].strip() if len(bagian) > 1 else "",
+        "poin_video"      : [],
+        "youtube_tags"    : [],
+    }
+    if len(bagian) > 2:
+        import re
+        for line in bagian[2].split("\n"):
+            line = re.sub(r"^[-•*\d.▸]+\s*", "", line).strip()
+            if line and len(line) > 5:
+                hasil["poin_video"].append(line[:55])
+        hasil["poin_video"] = hasil["poin_video"][:3]
+    if len(bagian) > 3:
+        import re
+        hasil["youtube_tags"] = [t.strip() for t in re.split(r"[,\n]", bagian[3]) if t.strip()]
+    return hasil
+
+
 def generate_image_url(topik: str, style: str = "football") -> str:
     """Generate URL gambar Full HD dari Pollinations.ai (gratis, tanpa API key).
     Resolusi 1920x1080, model flux, enhance=true untuk kualitas maksimal.

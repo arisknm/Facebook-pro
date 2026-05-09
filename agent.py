@@ -289,6 +289,92 @@ class FootballContentAgent:
         self._post_facebook(caption, hasil, image_url, judul="Statistik Pertandingan Semalam", tipe_aff="statistik")
         return hasil
 
+    def posting_berita_topik_khusus(self, topik: str = "") -> dict:
+        """
+        Job berita topik khusus — rotasi harian:
+        Timnas | Liga 1 | Persija | Persib | Man Utd | Liga Champion
+        Buat video vertikal 9:16 (Reels format) + post ke FB & Threads.
+        """
+        if not topik:
+            topik = news.get_topik_pundit_hari_ini()
+
+        label_map = {
+            "timnas"            : "Timnas Indonesia",
+            "liga1"             : "BRI Liga 1",
+            "persija"           : "Persija Jakarta",
+            "persib"            : "Persib Bandung",
+            "manchester_united" : "Manchester United",
+            "liga_champion"     : "Liga Champions",
+        }
+        label = label_map.get(topik, topik)
+        log.info(f"Job topik khusus: {label}")
+
+        berita = news.get_berita_pundit(topik, jumlah=5)
+        if not berita:
+            log.warning(f"Tidak ada berita untuk topik '{topik}'")
+            return {"status": "tidak_ada_berita", "topik": topik}
+
+        berita_teks = news.format_berita_untuk_prompt(berita)
+        konten      = gen.buat_konten_topik_khusus(berita_teks, topik)
+        self._simpan_konten(f"topik_{topik}", konten)
+
+        hasil     = {"konten": konten, "platform": [], "topik": topik}
+        headline  = konten.get("headline_video") or berita[0]["title"]
+        poin_list = konten.get("poin_video", [])
+        caption   = konten.get("facebook_caption", "")
+
+        # Gambar background (portrait untuk video vertikal)
+        image_url = next((b["image_url"] for b in berita if b.get("image_url")), "")
+        if not image_url:
+            style_map = {
+                "timnas": "football", "liga1": "football",
+                "persija": "football", "persib": "football",
+                "manchester_united": "football", "liga_champion": "klasemen",
+            }
+            image_url = gen.generate_image_url(
+                f"{label} football", style=style_map.get(topik, "football")
+            )
+
+        # Buat video vertikal 9:16
+        video_path = vg.buat_video_berita(
+            topik=topik,
+            headline=headline,
+            caption=caption,
+            image_url=image_url,
+        )
+
+        try:
+            if video_path:
+                res = fb.upload_video_file(caption, video_path, headline)
+                log.info(f"Facebook: video berita {label} — ID {res.get('id')}")
+                hasil["platform"].append({"facebook": res, "tipe": "reel"})
+                try:
+                    os.unlink(video_path)
+                except Exception:
+                    pass
+            else:
+                # Fallback ke foto
+                res = fb.post_dengan_gambar(caption, image_url)
+                hasil["platform"].append({"facebook": res, "tipe": "foto"})
+        except Exception as e:
+            log.error(f"Facebook gagal: {e}")
+            try:
+                res = fb.post_teks(caption)
+                hasil["platform"].append({"facebook": res, "tipe": "teks_fallback"})
+            except Exception as e2:
+                hasil["platform"].append({"facebook_error": str(e2)})
+
+        # Threads
+        if THREADS_USER_ID and THREADS_ACCESS_TOKEN:
+            try:
+                res_t = threads.post_dengan_gambar(caption, image_url)
+                log.info(f"Threads: berita {label} — ID {res_t.get('id')}")
+                hasil["platform"].append({"threads": res_t})
+            except Exception as et:
+                log.warning(f"Threads gagal: {et}")
+
+        return hasil
+
     # ------------------------------------------------------------------ #
     #  KONTEN MANUAL
     # ------------------------------------------------------------------ #

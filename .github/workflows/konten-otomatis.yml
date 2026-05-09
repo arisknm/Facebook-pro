@@ -10,6 +10,7 @@ on:
     - cron: '0 12 * * *'    # 19:00 WIB — pengingat pertandingan
     - cron: '0 16 * * *'    # 23:00 WIB — rekap hasil
     - cron: '30 16 * * *'   # 23:30 WIB — statistik malam
+    - cron: '0 6 * * *'     # 13:00 WIB — berita topik khusus (rotasi harian)
     - cron: '0 3 * * 1'     # 10:00 WIB Senin — klasemen mingguan
   workflow_dispatch:
     inputs:
@@ -84,6 +85,8 @@ jobs:
               echo "perintah=preview --facebook" >> $GITHUB_OUTPUT
             elif [ "$MENIT" -ge "0450" ] && [ "$MENIT" -lt "0530" ]; then
               echo "perintah=polling" >> $GITHUB_OUTPUT
+            elif [ "$MENIT" -ge "0550" ] && [ "$MENIT" -lt "0630" ]; then
+              echo "perintah=topik" >> $GITHUB_OUTPUT
             elif [ "$MENIT" -ge "0750" ] && [ "$MENIT" -lt "0830" ]; then
               echo "perintah=viral" >> $GITHUB_OUTPUT
             elif [ "$MENIT" -ge "1150" ] && [ "$MENIT" -lt "1230" ]; then

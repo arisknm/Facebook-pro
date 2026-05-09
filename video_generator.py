@@ -389,3 +389,222 @@ def buat_video(
                 os.unlink(img_path)
             except Exception:
                 pass
+
+
+# --------------------------------------------------------------------------- #
+#  VIDEO BERITA VERTIKAL (9:16) — format siaran / Reels
+# --------------------------------------------------------------------------- #
+
+# Warna tema per topik
+_WARNA_TOPIK = {
+    "timnas"            : (220, 30,  30),   # merah Indonesia
+    "liga1"             : (20,  120, 220),  # biru BRI
+    "persija"           : (220, 40,  40),   # merah Persija
+    "persib"            : (30,  80,  200),  # biru Persib
+    "manchester_united" : (200, 15,  15),   # merah Man Utd
+    "liga_champion"     : (15,  15,  100),  # navy UCL
+}
+
+_LABEL_TOPIK = {
+    "timnas"            : "🇮🇩 TIMNAS INDONESIA",
+    "liga1"             : "🏆 BRI LIGA 1",
+    "persija"           : "🔴 PERSIJA JAKARTA",
+    "persib"            : "💙 PERSIB BANDUNG",
+    "manchester_united" : "👹 MANCHESTER UNITED",
+    "liga_champion"     : "⭐ UEFA CHAMPIONS LEAGUE",
+}
+
+REEL_W = 1080
+REEL_H = 1920
+REEL_DURASI = 25
+
+
+def _buat_frame_berita(
+    img_pil: "Image.Image",
+    topik: str,
+    headline: str,
+    poin_list: list[str],
+    ticker: str = "",
+) -> "np.ndarray":
+    """
+    Buat satu frame video berita vertikal 1080×1920.
+    Layout:
+      - Top 55%  : gambar background dengan gradient bawah
+      - Middle   : banner topik + headline besar
+      - Bottom   : bullet poin + ticker INFO BOLA
+    """
+    warna  = _WARNA_TOPIK.get(topik, (20, 20, 180))
+    label  = _LABEL_TOPIK.get(topik, "⚽ INFO BOLA")
+
+    canvas = Image.new("RGB", (REEL_W, REEL_H), (10, 10, 20))
+
+    # ── Gambar background di atas (55% tinggi) ────────────────────────────
+    img_h  = int(REEL_H * 0.55)
+    img_bg = img_pil.copy().convert("RGB").resize((REEL_W, img_h), Image.LANCZOS)
+    canvas.paste(img_bg, (0, 0))
+
+    draw = ImageDraw.Draw(canvas)
+
+    # Gradient gelap dari 40% ke 60% tinggi (transisi gambar ke konten)
+    grad_start = int(REEL_H * 0.38)
+    grad_end   = int(REEL_H * 0.57)
+    for y in range(grad_start, grad_end):
+        alpha = int(255 * (y - grad_start) / (grad_end - grad_start))
+        draw.line([(0, y), (REEL_W, y)], fill=(10, 10, 20, alpha))
+
+    # ── Banner topik ──────────────────────────────────────────────────────
+    banner_y = int(REEL_H * 0.53)
+    banner_h = 72
+    draw.rectangle([(0, banner_y), (REEL_W, banner_y + banner_h)], fill=(*warna, 255))
+
+    font_banner = _cari_font(36)
+    draw.text(
+        (REEL_W // 2, banner_y + banner_h // 2),
+        label, font=font_banner,
+        fill=(255, 255, 255), anchor="mm", align="center",
+    )
+
+    # ── Headline ──────────────────────────────────────────────────────────
+    headline_bersih = re.sub(r'[^\w\s\-|:/!?.,]', '', headline)[:80]
+    headline_wrap   = _wrap(headline_bersih, max_chars=24)
+    font_headline   = _cari_font(58)
+    y_hl            = banner_y + banner_h + 28
+
+    # Shadow
+    draw.text((REEL_W // 2 + 2, y_hl + 2), headline_wrap,
+              font=font_headline, fill=(0, 0, 0, 180), anchor="mt", align="center")
+    draw.text((REEL_W // 2, y_hl), headline_wrap,
+              font=font_headline, fill=(255, 255, 255), anchor="mt", align="center")
+
+    baris_hl = headline_wrap.count("\n") + 1
+    y_after_hl = y_hl + baris_hl * 68 + 24
+
+    # ── Divider ───────────────────────────────────────────────────────────
+    draw.rectangle(
+        [(80, y_after_hl), (REEL_W - 80, y_after_hl + 3)],
+        fill=(*warna, 200),
+    )
+
+    # ── Bullet poin ───────────────────────────────────────────────────────
+    font_poin = _cari_font(34)
+    y_poin    = y_after_hl + 22
+    for poin in poin_list[:3]:
+        poin_wrap = _wrap("▸  " + poin, max_chars=30)
+        draw.text((REEL_W // 2 + 1, y_poin + 1), poin_wrap,
+                  font=font_poin, fill=(0, 0, 0, 160), anchor="mt", align="center")
+        draw.text((REEL_W // 2, y_poin), poin_wrap,
+                  font=font_poin, fill=(220, 220, 255), anchor="mt", align="center")
+        y_poin += (poin_wrap.count("\n") + 1) * 46 + 12
+
+    # ── Ticker bawah ──────────────────────────────────────────────────────
+    ticker_y = REEL_H - 110
+    draw.rectangle([(0, ticker_y), (REEL_W, ticker_y + 60)], fill=(255, 30, 30))
+    ticker_teks = f"  📺 INFO BOLA  •  {ticker[:60] if ticker else 'Update Sepak Bola Terkini'}  "
+    font_ticker = _cari_font(28)
+    draw.text((REEL_W // 2, ticker_y + 30), ticker_teks,
+              font=font_ticker, fill=(255, 255, 255), anchor="mm")
+
+    # ── Watermark kanan atas ──────────────────────────────────────────────
+    font_wm = _cari_font(28)
+    draw.text((REEL_W - 30, 28), "INFO BOLA ⚽",
+              font=font_wm, fill=(255, 255, 255, 200), anchor="rt")
+
+    return np.array(canvas)
+
+
+def buat_video_berita(
+    topik: str,
+    headline: str,
+    caption: str,
+    image_url: str,
+    output_dir: str = "output",
+    nama_file: str = "",
+) -> str:
+    """
+    Buat video berita vertikal 1080×1920 (Reels/TikTok format).
+    Dengan layout broadcast: banner topik, headline, bullet poin, ticker.
+    Return path file MP4, atau string kosong jika gagal.
+    """
+    if not MOVIEPY_AVAILABLE:
+        log.warning("moviepy tidak tersedia, skip video berita")
+        return ""
+
+    img_path = ""
+    try:
+        import numpy as np
+        from moviepy.editor import VideoClip, AudioArrayClip
+
+        # Download gambar vertikal
+        img_url_v = image_url
+        if "image.pollinations.ai" in image_url:
+            img_url_v = re.sub(r'width=\d+', 'width=1080', image_url)
+            img_url_v = re.sub(r'height=\d+', 'height=1920', img_url_v)
+
+        log.info(f"Download gambar berita: {img_url_v[:70]}...")
+        img_path = _download_image(img_url_v)
+
+        img_base     = Image.open(img_path).convert("RGB")
+        img_base     = img_base.resize((REEL_W, int(REEL_H * 0.55)), Image.LANCZOS)
+
+        # Ambil poin dari caption (3 kalimat pertama)
+        poin_list = _ambil_poin(caption, max_poin=3)
+
+        # Ticker = judul berita disingkat
+        ticker = re.sub(r'[^\w\s\-|]', '', headline)[:70]
+
+        frame_statis = _buat_frame_berita(img_base, topik, headline, poin_list, ticker)
+
+        # Ken Burns ringan pada frame vertikal
+        img_arr = np.array(img_base.resize((REEL_W, REEL_H), Image.LANCZOS))
+
+        def make_frame(t: float) -> np.ndarray:
+            if t < 1.0:
+                return img_arr
+            alpha = min(1.0, (t - 1.0) / 0.8)
+            return (
+                img_arr.astype(np.float32) * (1 - alpha)
+                + frame_statis.astype(np.float32) * alpha
+            ).astype(np.uint8)
+
+        clip = VideoClip(make_frame, duration=REEL_DURASI)
+        clip = clip.fadein(0.5).fadeout(0.5)
+
+        # Musik latar (lebih pendek, BPM lebih hype untuk Reels)
+        musik_mono   = _buat_musik_latar(REEL_DURASI, SAMPLE_RATE)
+        musik_stereo = np.column_stack([musik_mono, musik_mono])
+        audio_clip   = AudioArrayClip(musik_stereo, fps=SAMPLE_RATE).set_duration(REEL_DURASI)
+        clip         = clip.set_audio(audio_clip)
+
+        Path(output_dir).mkdir(exist_ok=True)
+        if not nama_file:
+            ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
+            slug      = re.sub(r'\W+', '_', topik)
+            nama_file = f"reel_{slug}_{ts}.mp4"
+
+        output_path = os.path.join(output_dir, nama_file)
+        log.info(f"Render video berita → {output_path}")
+
+        clip.write_videofile(
+            output_path,
+            fps=FPS,
+            codec="libx264",
+            audio_codec="aac",
+            audio_fps=SAMPLE_RATE,
+            logger=None,
+            threads=2,
+            preset="ultrafast",
+        )
+        clip.close()
+        audio_clip.close()
+        log.info(f"Video berita selesai: {output_path}")
+        return output_path
+
+    except Exception as e:
+        log.error(f"Gagal buat video berita: {e}", exc_info=True)
+        return ""
+    finally:
+        if img_path and os.path.exists(img_path):
+            try:
+                os.unlink(img_path)
+            except Exception:
+                pass
