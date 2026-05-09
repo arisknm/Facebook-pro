@@ -137,9 +137,9 @@ def upload_video_file(caption: str, file_path: str, judul: str = "") -> dict:
 
 def upload_reels(caption: str, file_path: str, judul: str = "") -> dict:
     """Upload video sebagai Facebook Reels (vertical 9:16) via Reels API 3-langkah.
-    Step 1: Initialize → dapatkan video_id + upload_url
-    Step 2: Upload binary ke upload_url
-    Step 3: Publish dengan description
+    Step 1: Initialize → video_id + upload_url (rupload.facebook.com)
+    Step 2: Binary transfer dengan Content-Type: application/octet-stream
+    Step 3: Publish dengan video_state=PUBLISHED
     """
     _check_config()
     file_size = os.path.getsize(file_path)
@@ -148,41 +148,44 @@ def upload_reels(caption: str, file_path: str, judul: str = "") -> dict:
     init_resp = requests.post(
         f"{GRAPH_BASE}/{FACEBOOK_PAGE_ID}/video_reels",
         data={
-            "upload_phase": "start",
-            "access_token": FACEBOOK_ACCESS_TOKEN,
+            "upload_phase"  : "start",
+            "access_token"  : FACEBOOK_ACCESS_TOKEN,
         },
         timeout=30,
     )
     if not init_resp.ok:
-        _raise_facebook_error(init_resp)
+        raise Exception(f"Reels init gagal {init_resp.status_code}: {init_resp.text[:300]}")
     init_data  = init_resp.json()
-    video_id   = init_data["video_id"]
-    upload_url = init_data["upload_url"]
+    video_id   = init_data.get("video_id") or init_data.get("id", "")
+    upload_url = init_data.get("upload_url", "")
+    if not video_id or not upload_url:
+        raise Exception(f"Reels init response tidak valid: {init_data}")
 
-    # Step 2 — Transfer binary
+    # Step 2 — Binary transfer ke upload_url (rupload.facebook.com)
+    # PENTING: Content-Type harus application/octet-stream
     with open(file_path, "rb") as f:
-        up_resp = requests.post(
-            upload_url,
-            headers={
-                "Authorization": f"OAuth {FACEBOOK_ACCESS_TOKEN}",
-                "offset": "0",
-                "file_size": str(file_size),
-            },
-            data=f,
-            timeout=300,
-        )
+        video_bytes = f.read()
+    up_resp = requests.post(
+        upload_url,
+        headers={
+            "Authorization" : f"OAuth {FACEBOOK_ACCESS_TOKEN}",
+            "offset"        : "0",
+            "file_size"     : str(file_size),
+            "Content-Type"  : "application/octet-stream",
+        },
+        data=video_bytes,
+        timeout=300,
+    )
     if not up_resp.ok:
-        raise requests.HTTPError(
-            f"Reels upload transfer gagal: {up_resp.status_code} {up_resp.text[:300]}"
-        )
+        raise Exception(f"Reels transfer gagal {up_resp.status_code}: {up_resp.text[:300]}")
 
     # Step 3 — Publish
     finish_data: dict = {
-        "upload_phase"  : "finish",
-        "video_id"      : video_id,
-        "video_state"   : "PUBLISHED",
-        "description"   : caption[:2200],
-        "access_token"  : FACEBOOK_ACCESS_TOKEN,
+        "upload_phase" : "finish",
+        "video_id"     : video_id,
+        "video_state"  : "PUBLISHED",
+        "description"  : caption[:2200],
+        "access_token" : FACEBOOK_ACCESS_TOKEN,
     }
     if judul:
         finish_data["title"] = judul[:255]
@@ -192,7 +195,7 @@ def upload_reels(caption: str, file_path: str, judul: str = "") -> dict:
         timeout=30,
     )
     if not fin_resp.ok:
-        _raise_facebook_error(fin_resp)
+        raise Exception(f"Reels publish gagal {fin_resp.status_code}: {fin_resp.text[:300]}")
     return {"video_id": video_id, **fin_resp.json()}
 
 
