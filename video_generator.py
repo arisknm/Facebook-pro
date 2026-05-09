@@ -16,8 +16,14 @@ from datetime import datetime
 log = logging.getLogger(__name__)
 
 try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, VideoClip, AudioArrayClip
     import numpy as np
+    NP_AVAILABLE = True
+except ImportError:
+    NP_AVAILABLE = False
+    np = None  # type: ignore
+
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, VideoClip, AudioArrayClip
     from PIL import Image, ImageDraw, ImageFont
     MOVIEPY_AVAILABLE = True
 except ImportError:
@@ -38,7 +44,7 @@ VOLUME_MUSIK = 0.28     # volume musik (0.0–1.0), tidak terlalu keras
 # --------------------------------------------------------------------------- #
 
 def _nada(freq: float, dur: float, sr: int, amp: float = 1.0,
-          attack: float = 0.01, release: float = 0.08) -> np.ndarray:
+          attack: float = 0.01, release: float = 0.08) -> "np.ndarray":
     """Buat gelombang sinus satu nada dengan envelope ADSR sederhana."""
     n    = int(sr * dur)
     t    = np.linspace(0, dur, n, endpoint=False)
@@ -53,7 +59,7 @@ def _nada(freq: float, dur: float, sr: int, amp: float = 1.0,
     return wave
 
 
-def _kick(sr: int, dur: float = 0.18) -> np.ndarray:
+def _kick(sr: int, dur: float = 0.18) -> "np.ndarray":
     """Bass drum sintetis."""
     n   = int(sr * dur)
     t   = np.linspace(0, dur, n, endpoint=False)
@@ -64,7 +70,7 @@ def _kick(sr: int, dur: float = 0.18) -> np.ndarray:
     return env * np.sin(phase) * 0.90
 
 
-def _snare(sr: int, dur: float = 0.12) -> np.ndarray:
+def _snare(sr: int, dur: float = 0.12) -> "np.ndarray":
     """Snare drum sintetis (noise + nada)."""
     n    = int(sr * dur)
     t    = np.linspace(0, dur, n, endpoint=False)
@@ -74,7 +80,7 @@ def _snare(sr: int, dur: float = 0.12) -> np.ndarray:
     return env * (noise * 0.6 + tone * 0.4) * 0.55
 
 
-def _hihat(sr: int, dur: float = 0.06, open_hat: bool = False) -> np.ndarray:
+def _hihat(sr: int, dur: float = 0.06, open_hat: bool = False) -> "np.ndarray":
     """Hi-hat sintetis."""
     n   = int(sr * dur)
     t   = np.linspace(0, dur, n, endpoint=False)
@@ -86,7 +92,7 @@ def _hihat(sr: int, dur: float = 0.06, open_hat: bool = False) -> np.ndarray:
     return env * hp * 0.30
 
 
-def _pad_chord(freqs: list, dur: float, sr: int, amp: float = 0.18) -> np.ndarray:
+def _pad_chord(freqs: list, dur: float, sr: int, amp: float = 0.18) -> "np.ndarray":
     """Chord pad: gabungan beberapa sine wave lembut."""
     n      = int(sr * dur)
     result = np.zeros(n)
@@ -101,7 +107,7 @@ def _pad_chord(freqs: list, dur: float, sr: int, amp: float = 0.18) -> np.ndarra
     return result * env
 
 
-def _buat_musik_latar(durasi: float, sr: int = SAMPLE_RATE) -> np.ndarray:
+def _buat_musik_latar(durasi: float, sr: int = SAMPLE_RATE) -> "np.ndarray":
     """
     Synthesize musik latar sports/upbeat ±20 detik.
     Struktur: kick + snare + hihat + melodi + pad chord.
@@ -245,7 +251,7 @@ def _cari_font(ukuran: int) -> "ImageFont.ImageFont":
     return ImageFont.load_default()
 
 
-def _buat_frame(img_pil: "Image.Image", judul: str, poin_list: list[str]) -> "np.ndarray":
+def _buat_frame(img_pil: "Image.Image", judul: str, poin_list: list) -> "np.ndarray":
     """Frame video square 1080×1080 — full-bleed foto + gradient bawah + headline besar."""
     frame = img_pil.copy().convert("RGBA")
     w, h  = frame.size
@@ -316,9 +322,6 @@ def buat_video(
 
     img_path = ""
     try:
-        import numpy as np
-        from moviepy.editor import VideoClip, AudioArrayClip
-
         log.info(f"Download gambar untuk video: {image_url[:70]}...")
         img_path = _download_image(image_url)
 
@@ -456,7 +459,7 @@ def _buat_frame_berita(
     img_pil: "Image.Image",
     topik: str,
     headline: str,
-) -> "np.ndarray":
+) -> "np.ndarray":  # noqa: F821
     """
     Frame video berita full-bleed style siaran olahraga (ref: SCTV Sports / ESPN).
     Foto memenuhi seluruh frame 1080×1920. Gradient gelap di bawah 42%.
@@ -546,9 +549,6 @@ def buat_video_berita(
 
     img_path = ""
     try:
-        import numpy as np
-        from moviepy.editor import VideoClip, AudioArrayClip
-
         # Minta gambar portrait 9:16 dari Pollinations (lebih tinggi → crop ke 1080x1920)
         img_url_v = image_url
         if "image.pollinations.ai" in image_url:
