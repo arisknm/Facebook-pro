@@ -83,7 +83,7 @@ Contoh penggunaan:
   python main.py preview                           # Preview pertandingan hari ini
   python main.py rekap                             # Rekap hasil kemarin
   python main.py klasemen "Premier League"         # Analisis klasemen
-  python main.py topik "El Clasico 2025"           # Konten topik bebas
+  python main.py konten "El Clasico 2025"          # Buat konten topik bebas
   python main.py script "Top 5 Gol Minggu Ini" --durasi 7
   python main.py upload video.mp4 "Match Highlights"
   python main.py upload video.mp4 "Highlights" --privasi unlisted
@@ -124,8 +124,8 @@ Posting Facebook manual:
     p_kls.add_argument("liga", nargs="?", default="Premier League")
     p_kls.add_argument("--facebook", action="store_true", default=False)
 
-    # topik bebas
-    p_topik = sub.add_parser("topik", help="Konten topik bebas")
+    # konten bebas (nama diubah dari "topik" agar tidak tabrakan dengan job harian)
+    p_topik = sub.add_parser("konten", help="Buat konten topik bebas tanpa posting")
     p_topik.add_argument("teks", help="Topik konten")
     p_topik.add_argument("--facebook", action="store_true", default=False)
     p_topik.add_argument("--gambar", default="", help="URL gambar untuk Facebook")
@@ -204,10 +204,10 @@ Posting Facebook manual:
         choices=["timnas", "liga1", "persija", "persib", "manchester_united", "liga_champion", ""],
         help="Topik spesifik (default: rotasi otomatis berdasarkan hari)",
     )
-    sub.add_parser("viral",     help="[Facebook] Topik viral sepak bola (job 15:00)")
-    sub.add_parser("pengingat", help="[Facebook] Pengingat pertandingan malam (job 19:00)")
-    sub.add_parser("statistik", help="[Facebook] Statistik menarik malam ini (job 23:30)")
-    sub.add_parser("semua",     help="[Facebook] Posting SEMUA konten hari ini sekarang")
+    sub.add_parser("viral",      help="[Facebook] Topik viral sepak bola (job 15:00)")
+    sub.add_parser("pengingat",  help="[Facebook] Pengingat pertandingan malam (job 19:00)")
+    sub.add_parser("statistik",  help="[Facebook] Statistik menarik malam ini (job 23:30)")
+    sub.add_parser("semua",      help="[Facebook] Posting SEMUA konten hari ini sekarang")
 
     args = parser.parse_args()
 
@@ -243,7 +243,7 @@ Posting Facebook manual:
         if "konten" in hasil:
             cetak_konten(hasil["konten"])
 
-    elif args.perintah == "topik":
+    elif args.perintah == "konten":
         if args.gambar and args.facebook:
             hasil = agent.posting_ke_facebook_dengan_gambar(args.teks, args.gambar)
         else:

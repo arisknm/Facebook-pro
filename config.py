@@ -10,7 +10,10 @@ load_dotenv()
 # Anthropic / Claude (opsional, jika masih dipakai)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# Google Gemini (gratis 1.500 req/hari)
+# Groq API (primary AI — gratis 14.400 req/hari, lebih cepat)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# Google Gemini (fallback — gratis 1.500 req/hari)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Facebook / Meta

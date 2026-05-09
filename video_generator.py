@@ -404,23 +404,47 @@ def buat_video(
 #  VIDEO BERITA VERTIKAL (9:16) — format siaran / Reels
 # --------------------------------------------------------------------------- #
 
-# Warna tema per topik
+# Warna tema per topik / tipe posting
 _WARNA_TOPIK = {
-    "timnas"            : (220, 30,  30),   # merah Indonesia
-    "liga1"             : (20,  120, 220),  # biru BRI
-    "persija"           : (220, 40,  40),   # merah Persija
-    "persib"            : (30,  80,  200),  # biru Persib
-    "manchester_united" : (200, 15,  15),   # merah Man Utd
-    "liga_champion"     : (15,  15,  100),  # navy UCL
+    # Topik khusus
+    "timnas"            : (220, 30,  30),
+    "liga1"             : (20,  120, 220),
+    "persija"           : (220, 40,  40),
+    "persib"            : (30,  80,  200),
+    "manchester_united" : (200, 15,  15),
+    "liga_champion"     : (15,  15,  100),
+    # Tipe posting harian
+    "transfer"          : (230, 100,  0),
+    "viral"             : (160,  0,  200),
+    "preview"           : (0,  130,  80),
+    "rekap"             : (20,  20,  160),
+    "statistik"         : (50,  50,   50),
+    "polling"           : (0,  160,  160),
+    "pengingat"         : (180,  0,   80),
+    "klasemen"          : (180, 150,   0),
+    "hype"              : (220,  80,   0),
+    "football"          : (20,  130,  50),
 }
 
 _LABEL_TOPIK = {
+    # Topik khusus
     "timnas"            : "🇮🇩 TIMNAS INDONESIA",
     "liga1"             : "🏆 BRI LIGA 1",
     "persija"           : "🔴 PERSIJA JAKARTA",
     "persib"            : "💙 PERSIB BANDUNG",
     "manchester_united" : "👹 MANCHESTER UNITED",
     "liga_champion"     : "⭐ UEFA CHAMPIONS LEAGUE",
+    # Tipe posting harian
+    "transfer"          : "🔄 BERITA TRANSFER",
+    "viral"             : "🔥 TOPIK VIRAL",
+    "preview"           : "📅 PREVIEW PERTANDINGAN",
+    "rekap"             : "📊 REKAP HASIL",
+    "statistik"         : "📈 STATISTIK MALAM",
+    "polling"           : "🗳️ POLLING FANS",
+    "pengingat"         : "⏰ REMINDER MATCH",
+    "klasemen"          : "🥇 KLASEMEN LIGA",
+    "hype"              : "🔥 COUNTDOWN MATCH",
+    "football"          : "⚽ INFO BOLA",
 }
 
 REEL_W = 1080

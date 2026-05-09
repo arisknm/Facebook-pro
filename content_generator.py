@@ -1,14 +1,23 @@
 """
-Generator konten bola menggunakan Google Gemini API (gratis 1.500 req/hari).
-Model: gemini-2.0-flash — via REST API (tidak butuh library tambahan).
+Generator konten bola.
+Primary: Groq API (llama-3.3-70b-versatile) — 14,400 req/hari gratis, lebih cepat.
+Fallback: Google Gemini API (gemini-2.0-flash-lite) — 1,500 req/hari gratis.
 """
+import logging
 import requests
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, GROQ_API_KEY
 
-MODEL = "gemini-2.0-flash-lite"
-GEMINI_URL = (
+log = logging.getLogger(__name__)
+
+# ── Groq ──────────────────────────────────────────────────────────────────────
+GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# ── Gemini (fallback) ─────────────────────────────────────────────────────────
+GEMINI_MODEL = "gemini-2.0-flash-lite"
+GEMINI_URL   = (
     f"https://generativelanguage.googleapis.com/v1beta/models"
-    f"/{MODEL}:generateContent"
+    f"/{GEMINI_MODEL}:generateContent"
 )
 
 SYSTEM_PROMPT = (
@@ -18,7 +27,29 @@ SYSTEM_PROMPT = (
 )
 
 
-def _chat(prompt: str) -> str:
+def _chat_groq(prompt: str) -> str:
+    resp = requests.post(
+        GROQ_URL,
+        headers={
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": prompt},
+            ],
+            "max_tokens": 2048,
+            "temperature": 0.8,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
+def _chat_gemini(prompt: str) -> str:
     payload = {
         "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": [{"parts": [{"text": prompt}]}],
@@ -32,6 +63,16 @@ def _chat(prompt: str) -> str:
     )
     resp.raise_for_status()
     return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def _chat(prompt: str) -> str:
+    """Coba Groq dulu (cepat, 14.400 req/hari). Fallback ke Gemini jika gagal."""
+    if GROQ_API_KEY:
+        try:
+            return _chat_groq(prompt)
+        except Exception as e:
+            log.warning(f"Groq gagal ({e}), fallback ke Gemini...")
+    return _chat_gemini(prompt)
 
 
 # --------------------------------------------------------------------------- #

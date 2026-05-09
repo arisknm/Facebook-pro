@@ -482,43 +482,68 @@ class FootballContentAgent:
     #  HELPER
     # ------------------------------------------------------------------ #
 
+    # Peta tipe affiliate → topik video (menentukan warna badge & label)
+    _TIPE_KE_TOPIK = {
+        "transfer"  : "transfer",
+        "viral"     : "viral",
+        "preview"   : "preview",
+        "rekap"     : "rekap",
+        "statistik" : "statistik",
+        "polling"   : "polling",
+        "pengingat" : "pengingat",
+        "klasemen"  : "klasemen",
+        "hype"      : "hype",
+        "timnas"    : "timnas",
+        "liga1"     : "liga1",
+        "persija"   : "persija",
+        "persib"    : "persib",
+        "manchester_united" : "manchester_united",
+        "liga_champion"     : "liga_champion",
+    }
+
     def _post_facebook(self, caption: str, hasil: dict, image_url: str = "",
                        judul: str = "", tipe_aff: str = "default"):
-        """Helper: posting ke Facebook + Threads secara bersamaan.
-        Otomatis menambahkan link affiliate Shopee ke caption.
-        Urutan fallback Facebook: video lokal → foto via URL → teks.
-        Threads: foto via URL (Pollinations) → teks.
+        """Helper: posting ke Facebook + Threads sebagai Reels 9:16.
+        Semua post menggunakan format video vertikal Reels.
+        Fallback chain: Reels API → video biasa → foto → teks.
         """
-        # Tambahkan link affiliate Shopee ke caption
         caption = aff.tambah_affiliate_ke_caption(caption, tipe_aff)
+        topik_video = self._TIPE_KE_TOPIK.get(tipe_aff, "football")
 
         # ── Facebook ──────────────────────────────────────────────────────
         try:
             if image_url:
-                video_path = vg.buat_video(judul or "Info Bola", caption, image_url)
+                # Semua post pakai format Reels 9:16
+                headline = judul or caption.split("\n")[0].strip()[:90]
+                video_path = vg.buat_video_berita(
+                    topik=topik_video,
+                    headline=headline,
+                    caption=caption,
+                    image_url=image_url,
+                )
                 if video_path:
                     posted = False
-                    # Coba Reels API dulu (lebih besar jangkauan organik)
+                    # Coba Reels API dulu
                     try:
                         res = fb.upload_reels(caption, video_path, judul)
-                        log.info(f"Facebook: diposting sebagai REELS — ID {res.get('video_id')}")
+                        log.info(f"Facebook REELS ({topik_video}) — ID {res.get('video_id')}")
                         hasil["platform"].append({"facebook": res, "tipe": "reels"})
                         posted = True
                     except Exception as er:
-                        log.warning(f"Reels upload gagal ({er}), coba video biasa...")
-                    # Fallback ke upload video biasa
+                        log.warning(f"Reels gagal ({er}), coba video biasa...")
+                    # Fallback video biasa
                     if not posted:
                         try:
                             res = fb.upload_video_file(caption, video_path, judul)
-                            log.info(f"Facebook: diposting sebagai VIDEO — ID {res.get('id')}")
+                            log.info(f"Facebook VIDEO ({topik_video}) — ID {res.get('id')}")
                             hasil["platform"].append({"facebook": res, "tipe": "video"})
                             posted = True
                         except Exception as ev:
-                            log.warning(f"Upload video biasa juga gagal ({ev}), fallback ke foto")
-                    # Fallback ke foto
+                            log.warning(f"Video gagal ({ev}), fallback ke foto")
+                    # Fallback foto
                     if not posted:
                         res = fb.post_dengan_gambar(caption, image_url)
-                        log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
+                        log.info(f"Facebook FOTO — ID {res.get('id')}")
                         hasil["platform"].append({"facebook": res, "tipe": "foto"})
                     try:
                         os.unlink(video_path)
@@ -526,11 +551,11 @@ class FootballContentAgent:
                         pass
                 else:
                     res = fb.post_dengan_gambar(caption, image_url)
-                    log.info(f"Facebook: diposting dengan gambar — ID {res.get('id')}")
+                    log.info(f"Facebook FOTO — ID {res.get('id')}")
                     hasil["platform"].append({"facebook": res, "tipe": "foto"})
             else:
                 res = fb.post_teks(caption)
-                log.info(f"Facebook: diposting teks — ID {res.get('id')}")
+                log.info(f"Facebook TEKS — ID {res.get('id')}")
                 hasil["platform"].append({"facebook": res, "tipe": "teks"})
         except Exception as e:
             log.error(f"Facebook gagal: {e}")
