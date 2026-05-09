@@ -507,25 +507,26 @@ def _buat_frame_berita(
     draw.text((REEL_W // 2, badge_y + bh // 2), badge_text,
               font=font_badge, fill=(255, 255, 255), anchor="mm")
 
-    # ── Headline besar uppercase ──────────────────────────────────────────
-    headline_clean = re.sub(r'[^\w\s\-|:/!?.,]', '', headline).upper()[:110]
-    headline_wrap  = _wrap(headline_clean, max_chars=22)
-    font_headline  = _cari_font(66)
-    y_hl           = badge_y + bh + 20
+    # ── Headline — HANYA HOOK PENDEK, max 2 baris ────────────────────────
+    # Ambil max 6-7 kata pertama sebagai hook visual, sisanya di caption
+    kata = re.sub(r'[^\w\s\-|:/!?.,]', '', headline).split()
+    hook = " ".join(kata[:7]).upper()          # max 7 kata
+    headline_wrap = _wrap(hook, max_chars=18)  # max 18 karakter per baris → 2 baris max
+    font_headline = _cari_font(74)             # lebih besar karena teks lebih pendek
+    y_hl          = badge_y + bh + 24
 
-    # Hitung x agar center (Pillow 12+ tidak izinkan anchor pada multiline)
     hl_bbox = draw.multiline_textbbox((0, 0), headline_wrap, font=font_headline, align="center")
     hl_w    = hl_bbox[2] - hl_bbox[0]
     hl_x    = (REEL_W - hl_w) // 2
 
     for dx, dy in [(3, 3), (3, -3), (-3, 3), (-2, -2)]:
         draw.multiline_text((hl_x + dx, y_hl + dy), headline_wrap,
-                            font=font_headline, fill=(0, 0, 0, 200), align="center")
+                            font=font_headline, fill=(0, 0, 0, 210), align="center")
     draw.multiline_text((hl_x, y_hl), headline_wrap,
                         font=font_headline, fill=(255, 255, 255), align="center")
 
     baris_hl  = headline_wrap.count("\n") + 1
-    y_setelah = y_hl + baris_hl * 78
+    y_setelah = y_hl + baris_hl * 86
 
     # ── Garis aksen berwarna ──────────────────────────────────────────────
     garis_y = min(y_setelah + 18, REEL_H - 76)
