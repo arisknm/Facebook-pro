@@ -162,8 +162,8 @@ def get_topik_pundit_hari_ini() -> str:
         2: "manchester_united",
         3: "liga1",
         4: "timnas",
-        5: "persija",
-        6: "persib",
+        5: "liga1",
+        6: "liga_champion",
     }
     return rotasi.get(hari, "timnas")
 

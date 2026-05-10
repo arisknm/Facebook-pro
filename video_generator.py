@@ -197,6 +197,111 @@ def _buat_musik_latar(durasi: float, sr: int = SAMPLE_RATE) -> "np.ndarray":
 
 
 # --------------------------------------------------------------------------- #
+#  SFX + VOICEOVER
+# --------------------------------------------------------------------------- #
+
+def _sfx_whoosh(sr: int = SAMPLE_RATE, dur: float = 0.45) -> "np.ndarray":
+    """Whoosh intro SFX: swept filtered noise."""
+    n     = int(sr * dur)
+    t     = np.linspace(0, dur, n)
+    rng   = np.random.default_rng(99)
+    noise = rng.standard_normal(n)
+    env   = np.exp(t * 5) * np.exp(-t * 12)
+    env   = env / (env.max() + 1e-9)
+    hp    = noise - np.convolve(noise, np.ones(48) / 48, mode="same")
+    return (hp * env * 0.55).astype(np.float32)
+
+
+def _sfx_impact(sr: int = SAMPLE_RATE, dur: float = 0.18) -> "np.ndarray":
+    """Impact/punch SFX: low thump saat teks muncul."""
+    n     = int(sr * dur)
+    t     = np.linspace(0, dur, n)
+    env   = np.exp(-t * 40)
+    pitch = 100 * np.exp(-t * 25) + 40
+    phase = np.cumsum(2 * np.pi * pitch / sr)
+    return (env * np.sin(phase) * 0.75).astype(np.float32)
+
+
+def _generate_voiceover(teks: str, voice: str = "id-ID-ArdiNeural") -> str:
+    """Generate voiceover MP3 via edge-tts (gratis). Return path temp file."""
+    try:
+        import asyncio
+        import edge_tts
+
+        async def _run() -> str:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+            tmp.close()
+            communicate = edge_tts.Communicate(teks, voice)
+            await communicate.save(tmp.name)
+            return tmp.name
+
+        return asyncio.run(_run())
+    except Exception as e:
+        log.warning(f"Voiceover gagal: {e}")
+        return ""
+
+
+def _load_audio_mono(path: str, sr: int) -> "np.ndarray":
+    """Load file audio (MP3/WAV) ke numpy array mono float32."""
+    try:
+        from moviepy.editor import AudioFileClip
+        clip = AudioFileClip(path)
+        arr  = clip.to_soundarray(fps=sr)
+        clip.close()
+        if arr.ndim > 1:
+            arr = arr.mean(axis=1)
+        return arr.astype(np.float32)
+    except Exception as e:
+        log.warning(f"Load audio gagal ({path}): {e}")
+        return np.array([], dtype=np.float32)
+
+
+def _buat_audio_berita(topik: str, headline: str, durasi: float, sr: int = SAMPLE_RATE) -> "np.ndarray":
+    """
+    Buat audio track: SFX whoosh + impact + voice over narasi berita.
+    Return stereo float32 array shape (N, 2).
+    """
+    n_total = int(sr * durasi)
+    mono    = np.zeros(n_total, dtype=np.float32)
+
+    def _place(samples: "np.ndarray", pos: int):
+        end = min(pos + len(samples), n_total)
+        mono[pos:end] += samples[:end - pos]
+
+    # ── SFX ──────────────────────────────────────────────────────────────────
+    _place(_sfx_whoosh(sr), 0)                       # 0.0s: whoosh intro
+    _place(_sfx_impact(sr), int(sr * 0.85))          # 0.85s: impact saat foto muncul
+
+    # ── Voice over ────────────────────────────────────────────────────────────
+    label_raw = _LABEL_TOPIK.get(topik, "Info Bola")
+    label     = re.sub(r"[^\w\s]", "", label_raw).strip()
+    kata      = re.sub(r"[^\w\s,.\-]", "", headline).split()[:12]
+    skrip     = f"{label}! {' '.join(kata)}. Ikuti terus Info Bola untuk update sepak bola terkini!"
+
+    vo_path = _generate_voiceover(skrip)
+    if vo_path:
+        try:
+            vo_arr = _load_audio_mono(vo_path, sr)
+            if len(vo_arr) > 0:
+                vo_start = int(sr * 1.4)      # narasi mulai setelah 1.4 detik
+                _place(vo_arr * 0.88, vo_start)
+        finally:
+            try:
+                os.unlink(vo_path)
+            except Exception:
+                pass
+
+    # ── Normalize + fade out ─────────────────────────────────────────────────
+    peak = np.max(np.abs(mono))
+    if peak > 0:
+        mono = mono / peak * 0.90
+    fo = int(sr * 1.2)
+    mono[-fo:] *= np.linspace(1, 0, fo)
+
+    return np.column_stack([mono, mono])   # mono → stereo
+
+
+# --------------------------------------------------------------------------- #
 #  VISUAL HELPERS
 # --------------------------------------------------------------------------- #
 
@@ -650,10 +755,10 @@ def buat_video_berita(
         clip = VideoClip(make_frame, duration=REEL_DURASI)
         clip = clip.fadein(0.5).fadeout(0.5)
 
-        # Musik latar
-        musik_mono   = _buat_musik_latar(REEL_DURASI, SAMPLE_RATE)
-        musik_stereo = np.column_stack([musik_mono, musik_mono])
-        audio_clip   = AudioArrayClip(musik_stereo, fps=SAMPLE_RATE).set_duration(REEL_DURASI)
+        # Audio: SFX + voice over (tanpa musik latar)
+        log.info("Membuat voice over dan SFX...")
+        audio_stereo = _buat_audio_berita(topik, headline, REEL_DURASI, SAMPLE_RATE)
+        audio_clip   = AudioArrayClip(audio_stereo, fps=SAMPLE_RATE).set_duration(REEL_DURASI)
         clip         = clip.set_audio(audio_clip)
 
         Path(output_dir).mkdir(exist_ok=True)
