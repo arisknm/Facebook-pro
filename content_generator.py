@@ -89,13 +89,19 @@ Buat konten preview pertandingan sepak bola hari ini untuk media sosial.
 Data pertandingan:
 {daftar}
 
-Format output:
-1. CAPTION FACEBOOK (200-300 kata, engaging, ada call-to-action, hashtag)
-2. DESKRIPSI YOUTUBE (150-200 kata, SEO-friendly, ada timestamp section)
-3. JUDUL YOUTUBE (maks 70 karakter, clickbait tapi tidak bohong)
-4. TAGS YOUTUBE (15-20 tag, pisahkan dengan koma)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-300 kata, engaging, call-to-action, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150-200 kata, SEO-friendly, ada timestamp]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter, clickbait tapi tidak bohong]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -109,13 +115,19 @@ Buat konten rekap hasil pertandingan sepak bola kemarin.
 Hasil pertandingan:
 {daftar}
 
-Format output:
-1. CAPTION FACEBOOK (250-350 kata, analisis singkat, reaksi, hashtag)
-2. DESKRIPSI YOUTUBE (150-200 kata, highlight poin, SEO)
-3. JUDUL YOUTUBE (maks 70 karakter)
-4. TAGS YOUTUBE (15-20 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[250-350 kata, analisis singkat, reaksi, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150-200 kata, highlight poin, SEO]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -128,13 +140,19 @@ Buat konten analisis klasemen {liga} untuk media sosial.
 Data klasemen (5 besar dan 3 zona degradasi):
 {standings_teks}
 
-Format output:
-1. CAPTION FACEBOOK (200-280 kata, analisis perebutan gelar & degradasi, hashtag)
-2. DESKRIPSI YOUTUBE (150 kata, SEO)
-3. JUDUL YOUTUBE (maks 70 karakter)
-4. TAGS YOUTUBE (15 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-280 kata, analisis perebutan gelar & degradasi, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150 kata, SEO]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter]
+
+=== TAGS YOUTUBE ===
+[15 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -147,13 +165,19 @@ Buat konten berita transfer pemain untuk media sosial.
 Informasi transfer:
 {berita}
 
-Format output:
-1. CAPTION FACEBOOK (200-300 kata, dramatis tapi faktual, hashtag)
-2. DESKRIPSI YOUTUBE (150 kata)
-3. JUDUL YOUTUBE (maks 70 karakter, attention-grabbing)
-4. TAGS YOUTUBE (15-20 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-300 kata, dramatis tapi faktual, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150 kata]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter, attention-grabbing]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -165,13 +189,19 @@ Buat konten sepak bola untuk media sosial dengan topik berikut:
 
 {topik}
 
-Format output:
-1. CAPTION FACEBOOK (200-300 kata, engaging, hashtag relevan)
-2. DESKRIPSI YOUTUBE (150-200 kata, SEO-friendly)
-3. JUDUL YOUTUBE (maks 70 karakter)
-4. TAGS YOUTUBE (15-20 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-300 kata, engaging, hashtag relevan]
+
+=== DESKRIPSI YOUTUBE ===
+[150-200 kata, SEO-friendly]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -184,13 +214,19 @@ Buat konten berita transfer sepak bola pagi hari untuk media sosial.
 Berita terkini:
 {berita_teks}
 
-Format output:
-1. CAPTION FACEBOOK (200-280 kata, gaya berita pagi, energetik, emoji, hashtag)
-2. DESKRIPSI YOUTUBE (150 kata, SEO-friendly)
-3. JUDUL YOUTUBE (maks 70 karakter, clickbait tapi faktual)
-4. TAGS YOUTUBE (15-20 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-280 kata, gaya berita pagi, energetik, emoji, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150 kata, SEO-friendly]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter, clickbait tapi faktual]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -455,13 +491,19 @@ Instruksi:
 - Ajak followers untuk save postingan dan pantau terus
 - Panjang caption Facebook: 200-280 kata, emoji, hashtag
 
-Format output:
-1. CAPTION FACEBOOK
-2. DESKRIPSI YOUTUBE (100-150 kata, SEO)
-3. JUDUL YOUTUBE (maks 70 karakter, ada "{label}")
-4. TAGS YOUTUBE (15 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[200-280 kata, hype countdown, emoji, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[100-150 kata, SEO]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter, ada "{label}"]
+
+=== TAGS YOUTUBE ===
+[15 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -514,13 +556,19 @@ Buat konten analisis topik viral sepak bola untuk media sosial sore hari.
 Topik/berita viral:
 {berita_teks}
 
-Format output:
-1. CAPTION FACEBOOK (220-300 kata, opini + analisis, ajakan diskusi, hashtag)
-2. DESKRIPSI YOUTUBE (150 kata, SEO)
-3. JUDUL YOUTUBE (maks 70 karakter, provokatif tapi tidak hoaks)
-4. TAGS YOUTUBE (15-20 tag)
+Tulis output dengan FORMAT TEPAT berikut (jangan tambah teks apapun sebelum baris pertama):
 
-Pisahkan setiap bagian dengan === BAGIAN ===
+=== CAPTION FACEBOOK ===
+[220-300 kata, opini + analisis, ajakan diskusi, hashtag]
+
+=== DESKRIPSI YOUTUBE ===
+[150 kata, SEO-friendly]
+
+=== JUDUL YOUTUBE ===
+[1 baris, maks 70 karakter, provokatif tapi tidak hoaks]
+
+=== TAGS YOUTUBE ===
+[15-20 tag dipisahkan koma]
 """
     return _parse_output(_chat(prompt))
 
@@ -566,9 +614,10 @@ Tandai jeda dengan [PAUSE] dan efek visual dengan [VISUAL: deskripsi].
 # --------------------------------------------------------------------------- #
 
 def _parse_output(teks: str) -> dict:
-    """Parsing output AI ke dict berstruktur. Handle dua format pemisah:
-    - '=== BAGIAN ===' (format lama/Gemini)
-    - '=== CAPTION FACEBOOK ===' / '=== DESKRIPSI YOUTUBE ===' (format Groq/llama)
+    """Parsing output AI ke dict berstruktur. Handle tiga format:
+    1. '=== CAPTION FACEBOOK ===' (format eksplisit/Groq)
+    2. '=== BAGIAN ===' (format lama/Gemini)
+    3. '1. CAPTION FACEBOOK\\n...' (fallback numbered sections)
     """
     hasil = {
         "facebook_caption"   : "",
@@ -577,30 +626,30 @@ def _parse_output(teks: str) -> dict:
         "youtube_tags"       : [],
     }
 
-    # Coba split berdasarkan format Groq: === ... ===
     _SEP = re.compile(r"===\s*([^=]+?)\s*===")
+    _KEY_MAP = {
+        "caption facebook"   : "facebook_caption",
+        "facebook"           : "facebook_caption",
+        "deskripsi youtube"  : "youtube_description",
+        "youtube description": "youtube_description",
+        "judul youtube"      : "youtube_title",
+        "judul video"        : "youtube_title",
+        "judul"              : "youtube_title",
+        "title"              : "youtube_title",
+        "tags youtube"       : "youtube_tags",
+        "tags"               : "youtube_tags",
+        "hashtag"            : "youtube_tags",
+    }
+
     header_matches = list(_SEP.finditer(teks))
 
     if header_matches:
-        # Format Groq: header bernama, ambil isi antar header
-        _KEY_MAP = {
-            "caption facebook": "facebook_caption",
-            "facebook": "facebook_caption",
-            "deskripsi youtube": "youtube_description",
-            "youtube description": "youtube_description",
-            "youtube": "youtube_description",
-            "judul video": "youtube_title",
-            "judul": "youtube_title",
-            "title": "youtube_title",
-            "tags": "youtube_tags",
-            "hashtag": "youtube_tags",
-        }
+        # ── Format 1: === NAMA BAGIAN === ──────────────────────────────────
         for idx, match in enumerate(header_matches):
             header_key = match.group(1).strip().lower()
             start = match.end()
             end = header_matches[idx + 1].start() if idx + 1 < len(header_matches) else len(teks)
             isi = teks[start:end].strip()
-            # Buang baris yang hanya berisi === ... ===
             isi_bersih = "\n".join(
                 ln for ln in isi.splitlines()
                 if not re.fullmatch(r"\s*===.*===\s*", ln)
@@ -612,8 +661,9 @@ def _parse_output(teks: str) -> dict:
                     else:
                         hasil[field] = isi_bersih
                     break
-    else:
-        # Format lama: pisah dengan '=== BAGIAN ==='
+
+    elif "=== BAGIAN ===" in teks:
+        # ── Format 2: === BAGIAN === (format lama) ─────────────────────────
         bagian = [b.strip() for b in teks.split("=== BAGIAN ===") if b.strip()]
         keys = ["facebook_caption", "youtube_description", "youtube_title", "youtube_tags"]
         for i, key in enumerate(keys):
@@ -624,9 +674,44 @@ def _parse_output(teks: str) -> dict:
                 else:
                     hasil[key] = isi
 
-    # Pastikan facebook_caption tidak kosong — fallback ke teks mentah
+    else:
+        # ── Format 3: numbered sections "1. CAPTION FACEBOOK\n...\n2. ..." ─
+        _NUM_HDR = re.compile(
+            r"(?:^|\n)\d+\.\s*(?:CAPTION FACEBOOK|DESKRIPSI YOUTUBE|JUDUL YOUTUBE|TAGS YOUTUBE"
+            r"|JUDUL VIDEO|HEADLINE VIDEO|TAGS)",
+            re.IGNORECASE,
+        )
+        parts = re.split(_NUM_HDR, teks)
+        labels = re.findall(_NUM_HDR, teks)
+        if len(parts) > 1:
+            for label_raw, isi in zip(labels, parts[1:]):
+                lbl = label_raw.strip().lower()
+                lbl = re.sub(r"^\d+\.\s*", "", lbl)
+                isi = isi.strip()
+                for kata, field in _KEY_MAP.items():
+                    if kata in lbl:
+                        if field == "youtube_tags":
+                            hasil[field] = [t.strip() for t in re.split(r"[,\n]", isi) if t.strip()]
+                        else:
+                            hasil[field] = isi
+                        break
+
+    # ── Bersihkan caption dari sisa header yang mungkin lolos ─────────────
+    if hasil["facebook_caption"]:
+        # Hapus baris yang berupa label section (mis. "1. CAPTION FACEBOOK")
+        lines = hasil["facebook_caption"].splitlines()
+        lines = [
+            ln for ln in lines
+            if not re.match(
+                r"^\s*\d+\.\s*(?:CAPTION FACEBOOK|DESKRIPSI YOUTUBE|JUDUL YOUTUBE|TAGS YOUTUBE"
+                r"|JUDUL VIDEO|TAGS)\s*$",
+                ln, re.IGNORECASE,
+            )
+        ]
+        hasil["facebook_caption"] = "\n".join(lines).strip()
+
+    # ── Fallback mutlak: jika caption masih kosong, bersihkan teks mentah ──
     if not hasil["facebook_caption"]:
-        # Hapus semua header === ... === dari teks mentah lalu pakai sebagai caption
         hasil["facebook_caption"] = _SEP.sub("", teks).strip()
 
     return hasil

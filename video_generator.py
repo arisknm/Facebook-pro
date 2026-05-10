@@ -476,13 +476,13 @@ def _buat_frame_berita(
     # Foto full-bleed
     canvas = img_pil.copy().convert("RGBA").resize((REEL_W, REEL_H), Image.LANCZOS)
 
-    # Gradient: transparan di atas → hitam pekat di bawah (mulai 42%)
+    # Gradient: transparan di atas → hitam pekat di bawah (mulai 38%)
     overlay = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
     draw_ov = ImageDraw.Draw(overlay)
-    grad_start = int(REEL_H * 0.42)
+    grad_start = int(REEL_H * 0.38)
     for y in range(grad_start, REEL_H):
         t_g   = (y - grad_start) / (REEL_H - grad_start)
-        alpha = int(248 * (t_g ** 1.2))
+        alpha = int(248 * (t_g ** 1.15))
         draw_ov.line([(0, y), (REEL_W, y)], fill=(0, 0, 0, min(alpha, 248)))
     canvas = Image.alpha_composite(canvas, overlay)
 
@@ -494,43 +494,59 @@ def _buat_frame_berita(
               font=font_wm, fill=(255, 255, 255, 220), anchor="rt")
 
     # ── Badge topik berwarna (di atas headline) ───────────────────────────
-    font_badge = _cari_font(36)
+    font_badge = _cari_font(38)
     badge_text = f"  {label}  "
-    badge_y    = REEL_H - 395
+    badge_y    = int(REEL_H * 0.56)   # ~1075px dari atas — lebih ke tengah-bawah frame
 
     bbox = draw.textbbox((0, 0), badge_text, font=font_badge)
-    bw   = bbox[2] - bbox[0] + 24
-    bh   = 56
+    bw   = bbox[2] - bbox[0] + 28
+    bh   = 60
     bx   = (REEL_W - bw) // 2
 
+    # Badge dengan ujung sedikit rounded (simulasi via 2 rect + 2 circle)
     draw.rectangle([(bx, badge_y), (bx + bw, badge_y + bh)], fill=(*warna, 255))
     draw.text((REEL_W // 2, badge_y + bh // 2), badge_text,
               font=font_badge, fill=(255, 255, 255), anchor="mm")
 
-    # ── Hook visual — SANGAT PENDEK, gaya "EL CLASICO" ──────────────────
-    # Ambil max 3 kata kunci paling penting (kata kapital / kata utama)
-    kata_semua = re.sub(r'[^\w\s]', '', headline).split()
-    # Prioritaskan kata yang diawali huruf kapital (nama tim/pemain/event)
-    kata_penting = [k for k in kata_semua if k[0].isupper() and len(k) > 2][:3]
+    # ── Hook visual — 1-2 kata paling mencolok, gaya headline siaran ────
+    _STOP = {"that", "this", "with", "from", "have", "been", "their", "will",
+             "after", "before", "about", "into", "over", "said", "they", "were",
+             "yang", "dan", "untuk", "dengan", "dari", "pada", "akan"}
+    kata_semua   = re.sub(r'[^\w\s]', '', headline).split()
+    kata_penting = [k for k in kata_semua
+                    if k[0].isupper() and len(k) > 3 and k.lower() not in _STOP][:2]
     if not kata_penting:
-        kata_penting = kata_semua[:3]
-    hook          = " ".join(kata_penting).upper()
-    headline_wrap = _wrap(hook, max_chars=12)   # max 12 karakter per baris → 1-2 baris
-    font_headline = _cari_font(96)              # besar dan bold
-    y_hl          = badge_y + bh + 28
+        kata_penting = [k for k in kata_semua if len(k) > 4][:2]
+    if not kata_penting:
+        kata_penting = kata_semua[:2]
+    hook = " ".join(kata_penting).upper()
+
+    headline_wrap = _wrap(hook, max_chars=14)
+    font_headline = _cari_font(124)   # jauh lebih besar, sangat dominan
+    y_hl = badge_y + bh + 22
 
     hl_bbox = draw.multiline_textbbox((0, 0), headline_wrap, font=font_headline, align="center")
     hl_w    = hl_bbox[2] - hl_bbox[0]
+    hl_h    = hl_bbox[3] - hl_bbox[1]
     hl_x    = (REEL_W - hl_w) // 2
 
-    for dx, dy in [(3, 3), (3, -3), (-3, 3), (-2, -2)]:
+    # Pill gelap di belakang hook agar teks tetap terbaca di semua foto
+    pad_x, pad_y = 30, 12
+    draw.rectangle(
+        [hl_x - pad_x, y_hl - pad_y, hl_x + hl_w + pad_x, y_hl + hl_h + pad_y],
+        fill=(0, 0, 0, 130),
+    )
+
+    # Shadow tebal berlapis → teks "timbul"
+    for dx, dy in [(4, 4), (-4, 4), (4, -4), (-4, -4), (5, 5), (-5, 5)]:
         draw.multiline_text((hl_x + dx, y_hl + dy), headline_wrap,
-                            font=font_headline, fill=(0, 0, 0, 210), align="center")
+                            font=font_headline, fill=(0, 0, 0, 195), align="center")
+    # Teks utama: kuning cerah — mencolok dan eye-catching
     draw.multiline_text((hl_x, y_hl), headline_wrap,
-                        font=font_headline, fill=(255, 255, 255), align="center")
+                        font=font_headline, fill=(255, 229, 0), align="center")
 
     baris_hl  = headline_wrap.count("\n") + 1
-    y_setelah = y_hl + baris_hl * 110
+    y_setelah = y_hl + baris_hl * 132
 
     # ── Garis aksen berwarna ──────────────────────────────────────────────
     garis_y = min(y_setelah + 18, REEL_H - 76)

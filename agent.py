@@ -193,7 +193,7 @@ class FootballContentAgent:
         # Gambar asli dari RSS atau TheSportsDB berdasarkan judul berita
         image_url = artikel.get("image_url") or gen.generate_image_url(artikel["title"], style="transfer")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                            judul=konten.get("youtube_title", "Berita Transfer Terkini"),
+                            judul=konten.get("youtube_title") or artikel["title"],
                             tipe_aff="transfer")
         return hasil
 
@@ -229,7 +229,7 @@ class FootballContentAgent:
         # Gambar asli dari RSS atau TheSportsDB
         image_url = artikel.get("image_url") or gen.generate_image_url(artikel["title"], style="viral")
         self._post_facebook(konten["facebook_caption"], hasil, image_url,
-                            judul=konten.get("youtube_title", "Topik Viral Sepak Bola"),
+                            judul=konten.get("youtube_title") or artikel["title"],
                             tipe_aff="viral")
         return hasil
 
