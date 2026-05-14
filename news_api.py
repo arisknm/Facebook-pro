@@ -32,23 +32,29 @@ RSS_INDONESIA = {
 TOPIK_PUNDIT = {
     "timnas": [
         "timnas", "indonesia", "garuda", "shin tae-yong", "sty",
-        "ragnar", "pratama arhan", "witan", "egy", "struick",
-        "marselino", "rizky ridho", "elkan baggott", "naturalisasi",
+        "pratama arhan", "witan", "egy", "struick", "marselino",
+        "rizky ridho", "elkan baggott", "naturalisasi", "ivar jenner",
+        "nathan tjoe", "jay idzes", "thom haye", "kevin diks",
+        "ragnar oratmangoen", "hokky caraka",
     ],
     "liga1": [
         "liga 1", "bri liga", "liga indonesia", "persija", "persib",
-        "arema", "borneo fc", "psm", "bali united", "persebaya",
+        "arema", "borneo fc", "psm makassar", "bali united", "persebaya",
+        "dewa united", "madura united", "barito putera", "persik kediri",
+        "persis solo", "psis semarang", "semen padang",
     ],
-    "persija": ["persija", "macan kemayoran", "jak mania", "the jak"],
-    "persib" : ["persib", "maung bandung", "bobotoh", "david da silva"],
-    "manchester_united": [
-        "manchester united", "man united", "man utd", "old trafford",
-        "ruben amorim", "rasmus hojlund", "bruno fernandes", "red devils",
+    "premier_league": [
+        "premier league", "epl", "liverpool", "chelsea", "arsenal",
+        "manchester city", "tottenham", "newcastle", "aston villa",
+        "man city", "man united", "manchester united", "west ham",
+        "brighton", "nottingham", "arne slot", "mikel arteta",
+        "pep guardiola", "salah", "haaland", "saka", "palmer",
     ],
     "liga_champion": [
         "champions league", "ucl", "liga champion", "uefa", "el clasico",
         "semifinal", "final champions", "real madrid", "barcelona",
         "man city", "arsenal", "psg", "inter milan", "dortmund",
+        "atletico madrid", "juventus", "vinicius", "mbappe", "bellingham",
     ],
 }
 
@@ -157,13 +163,13 @@ def get_topik_pundit_hari_ini() -> str:
     from datetime import datetime
     hari = datetime.now().weekday()
     rotasi = {
-        0: "timnas",
-        1: "liga_champion",
-        2: "manchester_united",
-        3: "liga1",
-        4: "timnas",
-        5: "liga1",
-        6: "liga_champion",
+        0: "timnas",          # Senin
+        1: "liga_champion",   # Selasa
+        2: "premier_league",  # Rabu
+        3: "liga1",           # Kamis
+        4: "timnas",          # Jumat
+        5: "liga_champion",   # Sabtu
+        6: "liga1",           # Minggu
     }
     return rotasi.get(hari, "timnas")
 

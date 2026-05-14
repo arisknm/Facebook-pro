@@ -321,14 +321,12 @@ def _parse_output_pundit(teks: str) -> dict:
 
 
 def buat_konten_topik_khusus(berita_teks: str, topik: str) -> dict:
-    """Buat konten berita untuk topik spesifik (Timnas, Liga1, Persija, dll.)."""
+    """Buat konten berita untuk topik spesifik (Timnas, Liga1, Premier League, dll.)."""
     label_map = {
-        "timnas"            : "Timnas Indonesia & pemain Indonesia di luar negeri",
-        "liga1"             : "BRI Liga 1 Indonesia",
-        "persija"           : "Persija Jakarta",
-        "persib"            : "Persib Bandung",
-        "manchester_united" : "Manchester United",
-        "liga_champion"     : "UEFA Champions League",
+        "timnas"         : "Timnas Indonesia & pemain Indonesia di luar negeri",
+        "liga1"          : "BRI Liga 1 Indonesia",
+        "premier_league" : "Premier League Inggris",
+        "liga_champion"  : "UEFA Champions League",
     }
     label = label_map.get(topik, topik)
     prompt = f"""

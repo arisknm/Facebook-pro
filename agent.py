@@ -303,12 +303,10 @@ class FootballContentAgent:
             topik = news.get_topik_pundit_hari_ini()
 
         label_map = {
-            "timnas"            : "Timnas Indonesia",
-            "liga1"             : "BRI Liga 1",
-            "persija"           : "Persija Jakarta",
-            "persib"            : "Persib Bandung",
-            "manchester_united" : "Manchester United",
-            "liga_champion"     : "Liga Champions",
+            "timnas"         : "Timnas Indonesia",
+            "liga1"          : "BRI Liga 1",
+            "premier_league" : "Premier League",
+            "liga_champion"  : "Liga Champions",
         }
         label = label_map.get(topik, topik)
         log.info(f"Job topik khusus: {label}")
@@ -331,9 +329,10 @@ class FootballContentAgent:
         image_url = berita[0].get("image_url") or ""
         if not image_url:
             style_map = {
-                "timnas": "football", "liga1": "football",
-                "persija": "football", "persib": "football",
-                "manchester_united": "football", "liga_champion": "klasemen",
+                "timnas"         : "football",
+                "liga1"          : "football",
+                "premier_league" : "football",
+                "liga_champion"  : "klasemen",
             }
             image_url = gen.generate_image_url(
                 f"{label} football", style=style_map.get(topik, "football")

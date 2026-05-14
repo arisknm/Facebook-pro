@@ -275,8 +275,17 @@ def _buat_audio_berita(topik: str, headline: str, durasi: float, sr: int = SAMPL
     # ── Voice over ────────────────────────────────────────────────────────────
     label_raw = _LABEL_TOPIK.get(topik, "Info Bola")
     label     = re.sub(r"[^\w\s]", "", label_raw).strip()
-    kata      = re.sub(r"[^\w\s,.\-]", "", headline).split()[:12]
-    skrip     = f"{label}! {' '.join(kata)}. Ikuti terus Info Bola untuk update sepak bola terkini!"
+    kata      = re.sub(r"[^\w\s,.\-]", "", headline).split()[:10]
+    hl        = " ".join(kata)
+    _SKRIP_MAP = {
+        "timnas"         : f"Update Timnas Indonesia! {hl}. Pantau terus perkembangan Garuda hanya di Info Bola!",
+        "liga1"          : f"BRI Liga satu terkini! {hl}. Simak info lengkapnya hanya di Info Bola!",
+        "premier_league" : f"Premier League update! {hl}. Berita bola Inggris terlengkap di Info Bola!",
+        "liga_champion"  : f"Liga Champions Eropa! {hl}. Ikuti terus Info Bola untuk update terkini!",
+        "transfer"       : f"Berita transfer terkini! {hl}. Update bursa transfer hanya di Info Bola!",
+        "viral"          : f"Topik viral hari ini! {hl}. Jangan sampai ketinggalan, ikuti Info Bola!",
+    }
+    skrip = _SKRIP_MAP.get(topik, f"{label}! {hl}. Update sepak bola terkini hanya di Info Bola!")
 
     vo_path = _generate_voiceover(skrip)
     if vo_path:
@@ -520,44 +529,40 @@ def buat_video(
 # Warna tema per topik / tipe posting
 _WARNA_TOPIK = {
     # Topik khusus
-    "timnas"            : (220, 30,  30),
-    "liga1"             : (20,  120, 220),
-    "persija"           : (220, 40,  40),
-    "persib"            : (30,  80,  200),
-    "manchester_united" : (200, 15,  15),
-    "liga_champion"     : (15,  15,  100),
+    "timnas"         : (220, 30,  30),
+    "liga1"          : (20,  120, 220),
+    "premier_league" : (130, 10,  50),   # warna ungu Premier League
+    "liga_champion"  : (15,  15,  110),
     # Tipe posting harian
-    "transfer"          : (230, 100,  0),
-    "viral"             : (160,  0,  200),
-    "preview"           : (0,  130,  80),
-    "rekap"             : (20,  20,  160),
-    "statistik"         : (50,  50,   50),
-    "polling"           : (0,  160,  160),
-    "pengingat"         : (180,  0,   80),
-    "klasemen"          : (180, 150,   0),
-    "hype"              : (220,  80,   0),
-    "football"          : (20,  130,  50),
+    "transfer"       : (230, 100,  0),
+    "viral"          : (160,   0, 200),
+    "preview"        : (0,   130,  80),
+    "rekap"          : (20,   20, 160),
+    "statistik"      : (50,   50,  50),
+    "polling"        : (0,   160, 160),
+    "pengingat"      : (180,   0,  80),
+    "klasemen"       : (180, 150,   0),
+    "hype"           : (220,  80,   0),
+    "football"       : (20,  130,  50),
 }
 
 _LABEL_TOPIK = {
     # Topik khusus
-    "timnas"            : "🇮🇩 TIMNAS INDONESIA",
-    "liga1"             : "🏆 BRI LIGA 1",
-    "persija"           : "🔴 PERSIJA JAKARTA",
-    "persib"            : "💙 PERSIB BANDUNG",
-    "manchester_united" : "👹 MANCHESTER UNITED",
-    "liga_champion"     : "⭐ UEFA CHAMPIONS LEAGUE",
+    "timnas"         : "🇮🇩 TIMNAS INDONESIA",
+    "liga1"          : "🏆 BRI LIGA 1 INDONESIA",
+    "premier_league" : "🏴󠁧󠁢󠁥󠁮󠁧󠁿 PREMIER LEAGUE",
+    "liga_champion"  : "⭐ UEFA CHAMPIONS LEAGUE",
     # Tipe posting harian
-    "transfer"          : "🔄 BERITA TRANSFER",
-    "viral"             : "🔥 TOPIK VIRAL",
-    "preview"           : "📅 PREVIEW PERTANDINGAN",
-    "rekap"             : "📊 REKAP HASIL",
-    "statistik"         : "📈 STATISTIK MALAM",
-    "polling"           : "🗳️ POLLING FANS",
-    "pengingat"         : "⏰ REMINDER MATCH",
-    "klasemen"          : "🥇 KLASEMEN LIGA",
-    "hype"              : "🔥 COUNTDOWN MATCH",
-    "football"          : "⚽ INFO BOLA",
+    "transfer"       : "🔄 BERITA TRANSFER",
+    "viral"          : "🔥 TOPIK VIRAL",
+    "preview"        : "📅 PREVIEW PERTANDINGAN",
+    "rekap"          : "📊 REKAP HASIL",
+    "statistik"      : "📈 STATISTIK MALAM",
+    "polling"        : "🗳️ POLLING FANS",
+    "pengingat"      : "⏰ REMINDER MATCH",
+    "klasemen"       : "🥇 KLASEMEN LIGA",
+    "hype"           : "🔥 COUNTDOWN MATCH",
+    "football"       : "⚽ INFO BOLA",
 }
 
 REEL_W = 1080
